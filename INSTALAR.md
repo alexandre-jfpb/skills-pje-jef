@@ -31,7 +31,7 @@ Use o PowerShell. A pessoa pode ter aberto a conversa em qualquer pasta: a insta
    $zip = Join-Path $env:TEMP 'skills-pje-jef.zip'
    $tmp = Join-Path $env:TEMP 'skills-pje-jef'
    if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
-   Invoke-WebRequest -UseBasicParsing 'https://github.com/amcinvestiment/skills-pje-jef/archive/refs/heads/main.zip' -OutFile $zip
+   Invoke-WebRequest -UseBasicParsing 'https://github.com/alexandre-jfpb/skills-pje-jef/archive/refs/heads/main.zip' -OutFile $zip
    Expand-Archive -LiteralPath $zip -DestinationPath $tmp -Force
    ```
 

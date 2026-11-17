@@ -9,7 +9,7 @@ As skills **só leem e sugerem**: nenhuma etiqueta é inserida e nenhum processo
 1. Abra o aplicativo **Claude** no computador e clique na aba **Code**. Comece uma conversa nova, em qualquer pasta (por exemplo, **Documentos**).
 2. Copie a frase abaixo, trocando o nome da skill pela que você quer, cole na caixa de mensagem e aperte **Enter**:
 
-   > Instale a skill jef-analise-inicial seguindo as instruções de https://raw.githubusercontent.com/amcinvestiment/skills-pje-jef/main/INSTALAR.md
+   > Instale a skill jef-analise-inicial seguindo as instruções de https://raw.githubusercontent.com/alexandre-jfpb/skills-pje-jef/main/INSTALAR.md
 
 3. Quando o Claude pedir permissão para acessar a internet, executar um comando ou criar arquivos, clique em **Permitir**.
 
