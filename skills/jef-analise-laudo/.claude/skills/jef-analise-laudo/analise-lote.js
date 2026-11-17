@@ -17,10 +17,17 @@
   if (!CR) return 'carregue antes o analise-lote-pje.js (window.__CR)';
   const LM = (window.__LM = window.__LM || { out: {}, dados: {}, mk: {} });
   LM.cfg = LM.cfg || { sm: null, etiquetas: {} };
-  LM.versao = 3; // v2, 30/10/2026: respostas do Setor de Perícias (afastamento, faixas, adicional de 25%, curatela 18+, outros laudos, incapacidade passada)
+  LM.versao = 4; // v2, 30/10/2026: respostas do Setor de Perícias (afastamento, faixas, adicional de 25%, curatela 18+, outros laudos, incapacidade passada)
   // v3, 16/11/2026: proposta de acordo depois do laudo (só informa, com o método da jef-expediente-manifestacao), intimação das
   // partes sobre o laudo (Intimação + Certidão de Intimação com os expedientes do INSS e da parte autora; sem ela, FALHA NA
   // INTIMAÇÃO) e MPF (cadastrado, manifestação nos autos, ou parte autora menor ou incapaz → INTIMAR MPF). Pede o CR v12.
+  // v4, 17/11/2026 (erros achados num lote real de 50 processos): adicional de 25% só quando é o pedido isolado
+  // (o acréscimo "na hipótese de" assistência permanente, junto com auxílio ou aposentadoria, é subsidiário); quesitos de
+  // menor também no item 4 (modelos com os quesitos de menor nesse item); aceite com a palavra partida ("a ceitar") e
+  // petição "(A PARTE AUTORA ACEITA …)" sem "(P …)" no mesmo dia não é anexo; pós-laudo com alegações finais, resposta,
+  // réplica, emenda e pedido de homologação; laudo lido até a página 100; certidão da assistente social de endereço não
+  // localizado; laudo complementar sem o quadro clínico combinado com o laudo anterior; dossiês do INSS "Laudo Pericial
+  // (<CPF> …)" fora dos laudos; laudo social que não confirma a composição do grupo familiar = divergência.
 
   const norm = (t) => (t || '').replace(/\s+/g, ' ').replace(/(\d)\s*\.\s*(?=\d)/g, '$1.')
     .replace(/☒|\(\s*[xX]\s*\)|\[\s*[xX]\s*\]/g, '[X]').replace(/☐|\(\s*\)|\[\s*\]/g, '[ ]');
@@ -49,7 +56,10 @@
   const SOCIAL = /laudo social|assistente social|estudo social|per[íi]cia social|socioecon/i;
   function laudos(num) {
     const ds = CR.mem.docs[num] || [];
-    const ls = ds.filter((x) => /^Laudo/i.test(x.ti) && !/anexo/i.test(x.ti));
+    // v4: fora os dossiês do INSS juntados como "Laudo Pericial (<CPF> Dossiê…/Extrato CNIS/…)" e, havendo "Laudo Pericial",
+    // os "Laudo Médico" juntados pelas partes.
+    let ls = ds.filter((x) => /^Laudo/i.test(x.ti) && !/anexo/i.test(x.ti) && !/^Laudo Pericial\s*\(\s*\d{11}/i.test(x.ti));
+    if (ls.some((x) => /^Laudo Pericial/i.test(x.ti))) ls = ls.filter((x) => !/^Laudo M[ée]dico/i.test(x.ti));
     const med = ls.filter((x) => !/social|socioecon/i.test(x.ti) && !SOCIAL.test((CR.mem.txt[x.id] || '').slice(0, 1500)));
     const soc = ls.filter((x) => !med.includes(x));
     let L = null;
@@ -69,11 +79,25 @@
     }
     return { L, socDepois, outrosMed, S };
   }
+  // v4: quadro clínico (6.3 ou 5.3) presente no texto; sem ele, o laudo é complementar (ou não carregou).
+  const QUADRO_RE = /\b[56]\.3\s*\.?\s*O quadro cl[íi]nico/i;
+  // O laudo mais recente de uma lista: a data mais recente e, no mesmo dia, o de texto maior.
+  function anterior(list) {
+    if (!list || !list.length) return null;
+    const s = list.slice().sort((a, b) => +b.id - +a.id);
+    const d0 = ymd(s[0].data);
+    return s.filter((x) => ymd(x.data) === d0).sort((a, b) => (b.len || 0) - (a.len || 0))[0];
+  }
 
+  const AD25_RE = /adicional de 25|acr[ée]scimo de 25|25\s*%\s*\(vinte e cinco por cento\)\s*(sobre|ao|no)|grande invalidez/i;
+  const OUTRO_PEDIDO = /(concess[ãa]o|conceder|restabelec\w*|prorroga\w*|convers[ãa]o|converter|implanta\w*)\s+(o\s+|a\s+|de\s+|do\s+|da\s+|em\s+)?(benef[íi]cio|aux[íi]lio|aposentadoria|amparo|BPC|LOAS)/i;
   function pedido(t) {
     const s = t.slice(0, 8000);
     // Adicional de 25% sobre aposentadoria já concedida (regra própria, Setor de Perícias, 30/10/2026).
-    if (/adicional de 25|acr[ée]scimo de 25|25\s*%\s*\(vinte e cinco por cento\)\s*(sobre|ao|no)/i.test(s)) return 'AD25';
+    // v4: só quando é o pedido isolado — no título da ação, ou sem pedido de concessão/restabelecimento de benefício na inicial.
+    // O acréscimo pedido "na hipótese de" assistência permanente, junto com auxílio ou aposentadoria, é subsidiário (pedido comum).
+    const acao = (s.match(/A[ÇC][ÃA]O\b[^.]{0,220}?(?=\s(?:em face|contra|em desfavor)\b)/i) || [''])[0];
+    if (AD25_RE.test(acao) || (AD25_RE.test(s) && !OUTRO_PEDIDO.test(t))) return 'AD25';
     if (/benef[íi]cio assistencial|amparo (social|assistencial)|\bLOAS\b|\bBPC\b|presta[çc][ãa]o continuada|art\.?\s*203/i.test(s)) return 'BPC';
     if (/aux[íi]lio[\s-]*acidente/i.test(s)) return 'AA';
     if (/aux[íi]lio|aposentadoria|incapacidade/i.test(s)) return 'PREV';
@@ -122,7 +146,9 @@
   const prazoMeses = (p) => { const m = (p || '').match(/(\d+) (\S+)/); if (!m) return null; return /^dia/.test(m[2]) ? +m[1] / 30.4375 : /^m/.test(m[2]) ? +m[1] : +m[1] * 12; };
 
   function menor(t) {
-    const w = win(t, /\b5\.2\s*\.?\s*A doen[çc]a, defici[êe]ncia/i, 0, 420);
+    // Quesito da limitação do menor: 5.2 no modelo da 7ª Vara; v4: 4.2 nos modelos com os quesitos de menor no item 4.
+    // O 5.2 de adulto desses modelos ("A doença, trauma ou deficiência se enquadra…") não casa.
+    const w = win(t, /\b[45]\.2\s*\.?\s*A doen[çc]a,\s*defici[êe]ncia/i, 0, 420);
     const c = compacta(w);
     let g = '';
     if (/\[x\]sim,?degrauleve/.test(c)) g = 'leve';
@@ -151,12 +177,26 @@
     const ti = norm(ini ? CR.mem.txt[ini.id] : '');
     D.pedido = pedido(ti);
     D.pedTxt = win(ti, /(benef[íi]cio assistencial|amparo|LOAS|BPC|aux[íi]lio[- ]acidente|aux[íi]lio[- ]doen[çc]a|aux[íi]lio por incapacidade|aposentadoria por (invalidez|incapacidade)|benef[íi]cio por incapacidade|benef[íi]cio previdenci|restabelec|adicional de 25)/i, 60, 200);
+    D.ad25Subsid = D.pedido !== 'AD25' && AD25_RE.test(ti.slice(0, 8000));
     if (S) return social(D, S, ds);
     if (!L) { D.flags = ['SEM LAUDO MÉDICO NEM SOCIAL NA LISTA']; D.sug = 'ler pela tela?'; return D; }
-    const t = norm(CR.mem.txt[L.id]);
+    const tL = norm(CR.mem.txt[L.id]);
     D.laudo = L;
     if (socDepois.length) D.social = socDepois.map((x) => x.data + ' ' + x.id).join(', ');
-    D.outrosMed = outrosMed.map((x) => x.data + ' ' + x.id + ' «' + x.ti.slice(0, 40) + '»');
+    // v4: laudo complementar sem o quadro clínico → os quesitos saem do laudo anterior (o complementar prevalece no que
+    // responde: o trecho dele vai em T-COMPL, para a leitura).
+    let t = tL, outros = outrosMed;
+    if (!QUADRO_RE.test(tL)) {
+      const P = anterior(outrosMed);
+      if (P && QUADRO_RE.test(norm(CR.mem.txt[P.id] || ''))) {
+        t = norm(CR.mem.txt[P.id]);
+        D.orig = P;
+        D.complTxt = tL.replace(/^PDF \d+p :: /, '').slice(0, 900);
+        outros = outrosMed.filter((x) => ymd(x.data) !== ymd(P.data));
+      }
+    }
+    D.outrosMed = outros.map((x) => x.data + ' ' + x.id + ' «' + x.ti.slice(0, 40) + '»');
+    const tAll = D.orig ? tL + ' ' + t : t; // exame, incapacidade passada e acidente: os dois laudos
     D.pericia = data(win(t, /data da per[íi]cia|realiza[çc][ãa]o da per[íi]cia|data da realiza[çc][ãa]o/i, 0, 60).replace(/^[^:]*:/, ''));
     D.nasc = data(win(t, /data d[eo] nascimento|nascid[oa] em|nascimento\s*(-\s*idade\s*)?:/i, 0, 60).replace(/^[^\d]*/, ''));
     D.idade = idade(D.nasc, D.pericia);
@@ -177,14 +217,14 @@
     D.acid = [];
     if (aW && resposta(aW) === 'SIM') D.acid.push('quesito de acidente do trabalho = SIM');
     // "(acidente típico, acidente de trajeto, etc)" é texto do quesito, não resposta.
-    const tr = t.match(/acidente\s+(no|de)\s+traje\s?to(?!,?\s*etc)[^.;]{0,80}/i);
+    const tr = tAll.match(/acidente\s+(no|de)\s+traje\s?to(?!,?\s*etc)[^.;]{0,80}/i);
     if (tr) D.acid.push('"' + tr[0].slice(0, 90) + '"');
-    const at = t.match(/(sofreu|v[íi]tima de)\s+acidente\s+(t[íi]pico\s+)?d[eo]\s+trabalho[^.;]{0,60}/i);
+    const at = tAll.match(/(sofreu|v[íi]tima de)\s+acidente\s+(t[íi]pico\s+)?d[eo]\s+trabalho[^.;]{0,60}/i);
     if (at) D.acid.push('"' + at[0].slice(0, 90) + '"');
-    const ex = t.match(/[^.]{0,120}(solicit\S*\s+(a\s+)?(realiza\S*\s+de\s+)?(o\s+|os\s+)?exames?|aguard\S*\s+(o\s+)?(resultado|exame)|n[ãa]o\s+(é|foi)\s+poss[íi]vel\s+concluir|(laudo|per[íi]cia)\s+inconclusiv)[^.]{0,160}/i);
+    const ex = tAll.match(/[^.]{0,120}(solicit\S*\s+(a\s+)?(realiza\S*\s+de\s+)?(o\s+|os\s+)?exames?|aguard\S*\s+(o\s+)?(resultado|exame)|n[ãa]o\s+(é|foi)\s+poss[íi]vel\s+concluir|(laudo|per[íi]cia)\s+inconclusiv)[^.]{0,160}/i);
     D.exame = ex ? ex[0].slice(0, 280) : '';
     // Incapacidade só no passado (período encerrado antes da perícia) = Laudo D, com o período no Fundamento.
-    const pp = t.match(/[^.]{0,80}(incapacidade|incapaz)[^.]{0,80}(pret[ée]rit|no per[íi]odo (de|entre)|entre \d{1,2}\/\d{1,2}\/\d{4} e|at[ée] \d{1,2}\/\d{1,2}\/\d{4}, quando)[^.]{0,120}/i);
+    const pp = tAll.match(/[^.]{0,80}(incapacidade|incapaz)[^.]{0,80}(pret[ée]rit|no per[íi]odo (de|entre)|entre \d{1,2}\/\d{1,2}\/\d{4} e|at[ée] \d{1,2}\/\d{1,2}\/\d{4}, quando)[^.]{0,120}/i);
     D.passada = pp ? pp[0].slice(0, 260) : '';
     // Perícia in loco: pedido da parte em documento posterior ao último laudo.
     D.inloco = ds.filter((x) => +x.id > +L.id && !/^Laudo/i.test(x.ti) && /per[íi]cia\s+(in\s+loco|domiciliar|hospitalar)|realiza\S*\s+(d[ao]\s+)?per[íi]cia\s+(no|na)\s+(hospital|resid|domic|pres[íi]dio|unidade|cl[íi]nica)/i.test(CR.mem.txt[x.id] || '')).map((x) => x.data + ' ' + x.id + ' ' + x.ti.slice(0, 40));
@@ -207,13 +247,32 @@
     const reprPA = /\((CURADOR|CURADORA)\)/.test(pa) || (D.idade != null && D.idade >= 18 && /\(REPRESENTANTE\)/.test(pa));
     const reprDoc = ds.filter((x) => /termo de curatela|curatela (provis|definitiv)|(?<![a-zà-ú])curador[a]? (provis|definitiv|nomead)/i.test(CR.mem.txt[x.id] || '') || /curatela|curador/i.test(x.ti)).map((x) => x.data + ' ' + x.id);
     D.repr = reprPA ? 'curador/representante no polo ativo' : reprDoc.length ? 'documento: ' + reprDoc.slice(0, 3).join(', ') : '';
-    // Petições das partes depois do laudo: só petição, contestação, impugnação, manifestação, outras peças e requerimento,
-    // sem os anexos "(A …)" (procuração, documentos e dossiês que acompanham a petição não contam).
-    D.pos = ds.filter((x) => +x.id > +L.id && /^(Peti[çc][ãa]o|Contesta|Impugna|Manifesta|Outras pe[çc]as|Requerimento)/i.test(x.ti) && !/\(A /.test(x.ti))
-      .sort((a, b) => +a.id - +b.id)
-      .map((x) => x.data + ' ' + (/PROPOSTA DE ACORDO/i.test(x.ti) ? 'proposta de acordo do INSS' : /^Contesta/i.test(x.ti) ? 'contestação' : /Impugna/i.test(x.ti) ? 'impugnação' : /Manifesta/i.test(x.ti) ? 'manifestação' : 'petição') + ' (ID ' + x.id + ')');
+    D.pos = posLaudo(ds, L.id);
     sugere(D);
     return D;
+  }
+
+  // v4: "(A …)" é anexo quando é dossiê, laudo, documento etc., ou quando há a petição principal "(P …)" no mesmo dia;
+  // "Petição (outras) (A PARTE AUTORA ACEITA O ACORDO)" sem "(P …)" é a própria petição.
+  const ANEXO_TIT = /\(A (DOSSI|LAUDO|ANEXO|PETI[ÇC][ÃA]O \(|DOC|PROCURA|CNIS|EXTRATO|COMPROV|ATESTADO|RECEIT|EXAME|FOTO|CONTRATO|DECLARA|SABI|PLANILHA|C[ÁA]LCULO|HIST[ÓO]RICO|RELAT|QUADRO|CERTID|TELA|PRINT|CAD|RG\b|CPF\b)/i;
+  function ehAnexo(x, ds) {
+    if (!/\(A /.test(x.ti)) return false;
+    if (ANEXO_TIT.test(x.ti)) return true;
+    return ds.some((y) => /\(P /.test(y.ti) && ymd(y.data) === ymd(x.data) && +y.id < +x.id && +x.id - +y.id < 300);
+  }
+  // Petições das partes depois do laudo: petição, contestação, impugnação, manifestação, outras peças, requerimento e, na v4,
+  // alegações finais, resposta, réplica, emenda, pedido (de homologação etc.) e "Outros Documentos (MANIFESTAÇÃO …)";
+  // sem os anexos (procuração, documentos e dossiês que acompanham a petição não contam).
+  const POS_TIT = /^(Peti[çc][ãa]o|Contesta|Impugna|Manifesta|Outras pe[çc]as|Requerimento|Alega[çc][õo]es|Resposta|R[ée]plica|Emenda|Pedido|Recurso|Embargos)|^Outros Documentos \((MANIFESTA|PETI|IMPUGNA|RESPOSTA)/i;
+  function rotulo(x) {
+    const ti = x.ti;
+    return /PROPOSTA DE ACORDO/i.test(ti) ? 'proposta de acordo do INSS' : /^Contesta/i.test(ti) ? 'contestação' : /Impugna/i.test(ti) ? 'impugnação'
+      : /^Alega/i.test(ti) ? 'alegações finais' : /Homologa/i.test(ti) ? 'pedido de homologação de acordo' : /^Emenda/i.test(ti) ? 'emenda à inicial'
+      : /R[ée]plica/i.test(ti) ? 'réplica' : /Manifesta/i.test(ti) ? 'manifestação' : /^Resposta/i.test(ti) ? 'resposta' : 'petição';
+  }
+  function posLaudo(ds, lid) {
+    return ds.filter((x) => +x.id > +lid && POS_TIT.test(x.ti) && !ehAnexo(x, ds)).sort((a, b) => +a.id - +b.id)
+      .map((x) => x.data + ' ' + rotulo(x) + ' (ID ' + x.id + ')');
   }
 
   // Laudo social (Setor de Perícias e usuário, 30/10/2026). Ordem: endereço > divergência > renda per capita × 1/2 SM.
@@ -227,14 +286,19 @@
     const rv = rW.match(/R\$\s*([\d.]+,\d{2})/);
     D.rpc = rv ? brl(rv[1]) : null;
     D.rpcTxt = rW.slice(0, 260);
-    const end = t.match(/[^.]{0,100}(n[ãa]o\s+(foi\s+)?(encontrad|localizad)\S*[^.]{0,40}(endere|resid|im[óo]vel|autor|requerente)|n[ãa]o\s+(encontrei|localizei|consegui localizar)|mudou-se|(n[ãa]o\s+)?reside\s+mais|n[ãa]o\s+reside\s+no\s+endere|endere[çc]o\s+(diverg|incorret|inexist|n[ãa]o\s+confere))[^.]{0,120}/i);
+    // v4: também a certidão da assistente social ("não conseguimos localizar o referido endereço", "foi impossível realizar
+    // a diligência"), juntada como "Laudo Pericial (… Certidão Perícia Social)".
+    const end = t.match(/[^.]{0,100}(n[ãa]o\s+(foi\s+)?(encontrad|localizad)\S*[^.]{0,40}(endere|resid|im[óo]vel|autor|requerente)|n[ãa]o\s+(conseg\w*\s+)?(encontr|localiz)\w*[^.]{0,40}(endere|resid|im[óo]vel|autor|requerente)|n[ãa]o\s+(encontrei|localizei|consegui localizar)|imposs[íi]vel\s+(realizar\s+a\s+)?(dilig[êe]ncia|visita|per[íi]cia)|per[íi]cia social negativ|mudou-se|(n[ãa]o\s+)?reside\s+mais|n[ãa]o\s+reside\s+no\s+endere|endere[çc]o\s+(diverg|incorret|inexist|n[ãa]o\s+confere))[^.]{0,120}/i);
     D.endTxt = end ? end[0].slice(0, 260) : '';
-    const div = t.match(/[^.]{0,100}(diverg[êe]nci\S*|contradi\S*|n[ãa]o\s+condiz\S*|incompat[íi]ve\S*\s+com\s+o\s+(declarad|informad|relatad)\S*)(?![^.]{0,40}endere)[^.]{0,140}/i);
+    // v4: endereço já detalhado pela parte autora depois do laudo ou da certidão (só informa).
+    D.endResp = D.endTxt ? ds.filter((x) => +x.id > +S.id && !/^Laudo/i.test(x.ti) && /ponto[s]?\s+de\s+refer[êe]ncia|endere[çc]o\s+(atualizado|correto|completo)|detalhar\s+(o\s+|seu\s+)?endere|telefone\s+(para\s+)?contato|contato\s*:\s*\(?\d{2}/i.test(CR.mem.txt[x.id] || ''))
+      .map((x) => x.data.slice(0, 10) + ' ' + x.id + ' ' + x.ti.slice(0, 40)) : [];
+    // v4: também "não tendo sido possível ... confirmar a composição efetiva do núcleo familiar" (17/11/2026).
+    const div = t.match(/[^.]{0,100}(diverg[êe]nci\S*|contradi\S*|n[ãa]o\s+condiz\S*|incompat[íi]ve\S*\s+com\s+o\s+(declarad|informad|relatad)\S*|n[ãa]o\s+(foi|sendo|tendo\s+sido)\s+poss[íi]vel[^.]{0,60}confirmar[^.]{0,40}(composi|grupo|n[úu]cleo))(?![^.]{0,40}endere)[^.]{0,140}/i);
     D.divTxt = div ? div[0].slice(0, 280) : '';
     const bf = t.match(/[^.]{0,80}(\bBPC\b|benef[íi]cio\s+(de\s+presta[çc][ãa]o\s+continuada|assistencial)|\bLOAS\b|aposentadoria|pens[ãa]o)[^.]{0,120}/i);
     D.benefTxt = bf ? bf[0].slice(0, 240) : '';
-    D.pos = ds.filter((x) => +x.id > +S.id && /^(Peti[çc][ãa]o|Contesta|Impugna|Manifesta|Outras pe[çc]as|Requerimento)/i.test(x.ti) && !/\(A /.test(x.ti))
-      .sort((a, b) => +a.id - +b.id).map((x) => x.data + ' ' + (/PROPOSTA DE ACORDO/i.test(x.ti) ? 'proposta de acordo do INSS' : /^Contesta/i.test(x.ti) ? 'contestação' : /Manifesta/i.test(x.ti) ? 'manifestação' : 'petição') + ' (ID ' + x.id + ')');
+    D.pos = posLaudo(ds, S.id);
     const meio = LM.sm ? LM.sm / 2 : null;
     let c;
     if (D.endTxt) c = 'Social - esclarecer localização';
@@ -244,6 +308,7 @@
     else c = D.rpc <= meio ? 'Social - renda até 1/2 SM' : 'Social - renda acima de 1/2 SM';
     D.sug = c; D.etq = ETQ(c);
     D.flags = [];
+    if (D.endResp && D.endResp.length) D.flags.push('ENDEREÇO JÁ DETALHADO PELA PARTE DEPOIS DO LAUDO: ' + D.endResp.join('; '));
     if (D.benefTxt) D.flags.push('BENEFÍCIO NO GRUPO? conferir se entrou na renda e excluir BPC/benefício de até 1 SM de outro idoso ou PcD: ' + D.benefTxt);
     if (D.pedido !== 'BPC') D.flags.push('pedido da inicial não identificado como BPC: conferir');
     return D;
@@ -279,16 +344,20 @@
       const semFormula = tp.replace(/(?:n[ãa]o (?:tem|possui|possuir)|aus[êe]ncia de) interesse (?:na|em) (?:realiza[çc][ãa]o de |designa[çc][ãa]o de )?audi[êe]ncia de concilia[çc][ãa]o/gi, '').replace(/AN[ÁA]LISE ESTRAT[ÉE]GICA ?- ?CONCILIA[ÇC][ÃA]O/gi, '');
       if (!m.length && /(?<!de )acordo(?! com)|concilia[çc]/i.test(semFormula)) m.push('ACORDO?');
     } else {
-      const acTit = /aceit\w* (de |da |a )?proposta|aceite/i.test(tit);
-      if ((acTit || /(aceit|concord|anu[êe])\w*.{0,120}(proposta|acordo|termos)|(proposta|acordo).{0,150}(aceit|concord|anu[êe]ncia)/i.test(t)) && !/n[ãa]o (aceit|concord)\w*.{0,60}(proposta|acordo)|recus\w*.{0,60}(proposta|acordo)/i.test(t)) m.push('ACEITA');
-      if (/(n[ãa]o (aceit|concord)|recus|discord|rejeit)\w*.{0,80}(proposta|acordo)|(proposta|acordo).{0,60}(recus|rejeit|n[ãa]o (aceit|concord))|contra-?proposta/i.test(t)) m.push('RECUSA');
+      const acTit = /aceit\w* (de |da |a |o )?(proposta|acordo)|aceite/i.test(tit);
+      // v4: também com a palavra partida pelo pdf.js ("a ceitar o acordo"): a mesma busca no texto sem espaços.
+      const tc = t.replace(/\s+/g, '').toLowerCase().replace(/deacordocom/g, '');
+      const aceita = /(aceit|concord|anu[êe])\w*.{0,120}(proposta|acordo|termos)|(proposta|acordo).{0,150}(aceit|concord|anu[êe]ncia)/i.test(t) || /(aceit|concord|anu[êe])\w{0,8}.{0,90}(proposta|acordo|termos)/.test(tc);
+      const naoAceita = /n[ãa]o (aceit|concord)\w*.{0,60}(proposta|acordo)|recus\w*.{0,60}(proposta|acordo)/i.test(t) || /n[ãa]o(aceit|concord)\w{0,8}.{0,50}(proposta|acordo)|recus\w{0,8}.{0,50}(proposta|acordo)/.test(tc);
+      if ((acTit || aceita) && !naoAceita) m.push('ACEITA');
+      if (/(n[ãa]o (aceit|concord)|recus|discord|rejeit)\w*.{0,80}(proposta|acordo)|(proposta|acordo).{0,60}(recus|rejeit|n[ãa]o (aceit|concord))|contra-?proposta/i.test(t) || naoAceita) m.push('RECUSA');
       if (/contra-?proposta/i.test(t)) m.push('CONTRAPROPOSTA');
     }
     return m;
   }
   // Só informa (decisão do usuário, 16/11/2026): não muda a classificação nem a etiqueta.
   function acordo(ds, lid) {
-    const post = ds.filter((x) => +x.id > +lid && !/\(A /.test(x.ti) && !/^(Certid|Intima|Laudo|Of[íi]cio|Cita|Ato|Despacho|Decis|Senten|Expedi|Alvar|Mandado)/i.test(x.ti))
+    const post = ds.filter((x) => +x.id > +lid && !ehAnexo(x, ds) && !/^(Certid|Intima|Laudo|Of[íi]cio|Cita|Ato|Despacho|Decis|Senten|Expedi|Alvar|Mandado)/i.test(x.ti))
       .sort((a, b) => +a.id - +b.id).map((x) => ({ x, m: marcasAcordo(norm(CR.mem.txt[x.id] || ''), x.ti) }));
     const id = (p) => 'ID ' + p.x.id + ', ' + p.x.data;
     const pr = post.find((p) => p.m.includes('PROPOSTA'));
@@ -363,6 +432,9 @@
     const ds = CR.mem.docs[num] || [];
     if (D.laudo) {
       D.acordo = acordo(ds, D.laudo.id);
+      // v4: a petição que aceita (ou recusa) a proposta aparece assim na lista do pós-laudo.
+      const ac = (D.acordo.match(/aceita[çc][ãa]o ID (\d+)/) || [])[1], rc = (D.acordo.match(/(?:recusada|contraproposta do autor) \(proposta ID \d+, [^;]+; ID (\d+)/) || [])[1];
+      if (D.pos) D.pos = D.pos.map((s) => (ac && s.includes('(ID ' + ac + ')') ? s.replace(' (ID ', ' com aceitação da proposta (ID ') : rc && s.includes('(ID ' + rc + ')') ? s.replace(' (ID ', ' com recusa da proposta (ID ') : s));
       const it = intimacao(ds, D.laudo.id, D.pa || '');
       D.intim = it.v; D.intimMot = it.mot; D.mpfIntimado = it.mpf;
     } else { D.acordo = '?'; D.intim = '?'; D.intimMot = 'sem laudo identificado'; }
@@ -397,6 +469,8 @@
     if (D.exame) f.push('EXAME? ' + D.exame);
     if (D.inloco.length) f.push('IN LOCO? ' + D.inloco.join('; '));
     if (D.pedido === '?') f.push('pedido não identificado na inicial');
+    if (D.ad25Subsid) f.push('adicional de 25% citado na inicial só como pedido subsidiário ou fundamento (não é pedido isolado): regra comum');
+    if (D.orig) f.push('LAUDO COMPLEMENTAR ' + D.laudo.id + ' (' + D.laudo.data.slice(0, 10) + ') sem quadro clínico: quesitos do laudo ' + D.orig.id + ' (' + D.orig.data.slice(0, 10) + '); o complementar prevalece no que responde (T-COMPL)');
     if (D.outrosMed && D.outrosMed.length) f.push('OUTRO LAUDO MÉDICO: ' + D.outrosMed.join('; ') + ' — complementar: combinar (o complementar prevalece no que responde); outra especialidade: classificar os dois e, se divergirem, INDEFINIDO');
     if (D.faixa) f.push('faixa "' + D.faixa + '" lida como ' + D.sub);
     if (D.passada) f.push('INCAPACIDADE PASSADA? ' + D.passada);
@@ -460,7 +534,7 @@
       ].filter(Boolean)).join('\n');
     }
     if (!L) return linhas.concat(['SEM LAUDO MÉDICO NA LISTA', 'PEDIDO: ' + D.pedido + ' — ' + D.pedTxt, 'MPF: ' + (D.mpf || '—') + (D.mpfMot ? ' (' + D.mpfMot + ')' : ''), 'SUG: ' + D.sug]).join('\n');
-    linhas.push('LAUDO ' + L.id + ' juntado ' + L.data + ' «' + L.ti.slice(0, 60) + '» | perícia ' + fmt(D.pericia) + ' | nasc ' + fmt(D.nasc) + ' | idade ' + (D.idade ?? '?') + ' | pessoa ' + D.pessoa);
+    linhas.push('LAUDO ' + L.id + ' juntado ' + L.data + ' «' + L.ti.slice(0, 60) + '»' + (D.orig ? ' (complementar) + quesitos do laudo ' + D.orig.id + ' juntado ' + D.orig.data : '') + ' | perícia ' + fmt(D.pericia) + ' | nasc ' + fmt(D.nasc) + ' | idade ' + (D.idade ?? '?') + ' | pessoa ' + D.pessoa);
     linhas.push('PEDIDO: ' + D.pedido + ' — ' + D.pedTxt);
     linhas.push('QUADRO: grau ' + (D.grau || '?') + (D.sub ? ' ' + D.sub : '') + (D.faixa ? ' (faixa ' + D.faixa + ')' : '') + (D.afast ? ' COM AFASTAMENTO' : '') + ' | DUR ' + (D.dur || '?') + (D.prazo ? ' ' + D.prazo + ' (conta da ' + (D.baseFim || '?') + ')' : '') + ' | DII ' + fmt(D.dii) + (D.fim ? ' | fim ' + fmt(D.fim) + ' | intervalo ' + D.intervalo.toFixed(1) + ' meses' : ''));
     if (D.idade != null && D.idade < 18 || D.menorResp) linhas.push('MENOR: 5.2 ' + (D.m52 || '?') + ' | quesitos de menor respondidos: ' + (D.menorResp ? 'sim' : 'não'));
@@ -474,6 +548,7 @@
     linhas.push('T-DURAÇÃO: ' + D.dTxt);
     linhas.push('T-DII: ' + D.diiTxt);
     if (D.idade != null && D.idade < 18 || D.menorResp) linhas.push('T-5.2: ' + D.mTxt);
+    if (D.orig) linhas.push('T-COMPL: ' + D.complTxt);
     return linhas.join('\n');
   }
 
@@ -483,9 +558,14 @@
     for (const num of nums) {
       try {
         if (!CR.mem.docs[num]) { LM.out[num] = '#' + num + ' AINDA NÃO LIDO PELO CR'; continue; }
-        const { L, S } = laudos(num);
+        const { L, S, outrosMed } = laudos(num);
         if (S) await CR.txt(S.id, 40);
-        else if (L) await CR.txt(L.id, 40);
+        else if (L) {
+          // v4: até a página 100 (laudo com exames digitalizados no meio tem os quesitos depois da página 40); é um só download.
+          await CR.txt(L.id, 100);
+          // v4: laudo complementar sem o quadro clínico → baixa também o laudo anterior inteiro, para combinar.
+          if (!QUADRO_RE.test(norm(CR.mem.txt[L.id] || ''))) { const P = anterior(outrosMed); if (P) await CR.txt(P.id, 100); }
+        }
         // v3: Intimação e Certidão de Intimação depois do laudo (o CR pula a certidão pelo título): baixa o texto aqui.
         const lid = (S || L || {}).id;
         if (lid) {

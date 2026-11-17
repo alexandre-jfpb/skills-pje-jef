@@ -180,6 +180,18 @@ Testado em 23/10/2026 nos 30 processos do terceiro teste (CSV da tarefa de anál
 
 **v3 (16/11/2026), com o `analise-lote-pje.js` v12:** o resumo ganha as linhas `PROPOSTA` (proposta de acordo depois do laudo, pelo método da `jef-expediente-manifestacao`), `INTIMAÇÃO DO LAUDO` (`ok` ou `FALHA NA INTIMAÇÃO`, pela Certidão de Intimação posterior ao laudo, cujo texto o script baixa, porque o leitor do PJe pula a certidão pelo título) e `MPF` (`INTIMAR MPF`, com o motivo). O MPF cadastrado é lido no polo passivo e em "Outros Interessados" do cabeçalho, que o CR v12 guarda em `CR.mem.partes`; com o CR antigo, a linha avisa que o polo passivo não foi lido. As três são sugestões, conferidas como as demais.
 
+**v4 (17/11/2026):** corrige erros de sugestão achados num lote real de 50 processos. As regras de classificação não mudaram.
+- **Adicional de 25%:** só é sugerido quando é o pedido isolado, no título da ação ou numa inicial sem pedido de concessão ou restabelecimento de benefício. O acréscimo pedido "na hipótese de" assistência permanente, junto com o auxílio ou a aposentadoria, é subsidiário e segue a regra comum; o resumo avisa.
+- **Quesitos de menor:** o script lê também os modelos que trazem os quesitos de menor no item 4 (4.2, além do 5.2 do modelo da 7ª Vara).
+- **Aceite da proposta:** reconhecido também com a palavra partida pelo leitor de PDF ("a ceitar o acordo"). A petição com título "(A PARTE AUTORA ACEITA …)" sem petição "(P …)" no mesmo dia deixou de ser tratada como anexo. Na lista do pós-laudo, a petição que aceita ou recusa a proposta vem marcada.
+- **Pós-laudo:** a lista inclui alegações finais, resposta, réplica, emenda à inicial, pedido (de homologação etc.) e "Outros Documentos (MANIFESTAÇÃO …)".
+- **Laudo longo:** o texto do laudo é lido até a página 100, com um só download (há laudos com os quesitos depois da página 40).
+- **Certidão de endereço não localizado:** a da assistente social, juntada como laudo, sai como `Social - esclarecer localização`. Se a parte autora já detalhou o endereço depois, o resumo avisa.
+- **Laudo complementar sem quadro clínico:** os quesitos saem do laudo anterior, e o texto do complementar vem em `T-COMPL`, porque ele prevalece no que responde.
+- **Dossiês do INSS:** os juntados como "Laudo Pericial (<CPF> …)" deixam de contar como laudo; havendo "Laudo Pericial", também o "Laudo Médico" das partes.
+- **Divergência no laudo social:** a assistente social que diz não ter sido possível confirmar a composição do grupo familiar também é sugerida como `Social - divergência`.
+- **Teste:** os 50 processos do lote foram relidos só em leitura; as 50 sugestões bateram com a classificação conferida no texto (na v3, 14 estavam erradas).
+
 ## Checagens preliminares — bloqueiam a classificação se divergirem
 
 Antes de classificar o laudo, faça as três checagens abaixo, em todo processo. Encontrando divergência relevante em qualquer uma delas, **não classifique o laudo**.
