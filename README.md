@@ -20,7 +20,7 @@ O Claude baixa a skill, instala na pasta **Documentos › Skills PJe**, confere 
 | Skill | Para que serve |
 |---|---|
 | `jef-analise-inicial` | Análise inicial dos processos do JEF |
-| `jef-analise-laudo-medico` | Análise do laudo médico e do laudo social |
+| `jef-analise-laudo` | Análise do laudo médico e do laudo social |
 | `jef-baixa-peticao` | Baixa de petições (documentos não lidos) |
 | `jef-conferir-rpv` | Conferência das RPVs no Jurisdição Delegada |
 | `jef-controle-prazo` | Controle de prazo (intimações que falharam) |

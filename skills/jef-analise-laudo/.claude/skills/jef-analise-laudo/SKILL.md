@@ -1,13 +1,13 @@
 ---
-name: "jef-analise-laudo-medico"
-description: "Para processos da tarefa do PJe em que se analisa o laudo pericial (nome configurado pela unidade), com Assunto de benefício por incapacidade (Aposentadoria por Invalidez, Auxílio por Incapacidade Temporária, Auxílio-Acidente, Incapacidade Laborativa Parcial ou Permanente, Pessoa com Deficiência, ou Benefício Assistencial - Deficiente), a partir de CSV ou lista de processos, lê a petição inicial e o laudo médico pericial, classifica o grau de incapacidade/limitação e a duração, e prescreve a etiqueta cabível (LOAS - Designar social, Prioridade, Limitação moderada ou grave, Laudo C ou Laudo D), ou, no lugar dela, a providência de complementação de laudo (laudo de outra pessoa, quesitos para menores de 16 anos), de exame complementar ou de perícia in loco, com a fase para onde movimentar, e, quando cabível, a providência de curatela, gerando relatório em .xlsx — sem inserir etiqueta no PJe, para a unidade (JEF do TRF5) que a configurou em docs/configuracao-unidade.md. Desenvolvida na 7ª Vara Federal da Paraíba."
+name: "jef-analise-laudo"
+description: "Para processos da tarefa do PJe em que se analisa o laudo pericial (nome configurado pela unidade), com Assunto de benefício por incapacidade (Aposentadoria por Invalidez, Auxílio por Incapacidade Temporária, Auxílio-Acidente, Incapacidade Laborativa Parcial ou Permanente, Pessoa com Deficiência, ou Benefício Assistencial - Deficiente ou Idoso), a partir de CSV ou lista de processos, lê a petição inicial e o laudo pericial (o laudo médico ou, no BPC, o laudo social), classifica o grau de incapacidade/limitação e a duração, e prescreve a etiqueta cabível (LOAS - Designar social, Prioridade, Limitação moderada ou grave, Laudo C ou Laudo D), ou, no lugar dela, a providência de complementação de laudo (laudo de outra pessoa, quesitos para menores de 16 anos), de exame complementar ou de perícia in loco, com a fase para onde movimentar, e, quando cabível, a providência de curatela, gerando relatório em .xlsx — sem inserir etiqueta no PJe, para a unidade (JEF do TRF5) que a configurou em docs/configuracao-unidade.md. Desenvolvida na 7ª Vara Federal da Paraíba."
 ---
 
-# Análise do Laudo Médico — Benefícios por Incapacidade no PJe — da unidade
+# Análise do Laudo Pericial (médico e social) — Benefícios por Incapacidade e BPC no PJe — da unidade
 
 Desenvolvida na 7ª Vara Federal da Paraíba. As regras de classificação refletem as decisões da 7ª Vara e do seu Setor de Perícias (as menções "decisão da 7ª Vara" e "Setor de Perícias", com data, indicam essa origem) e devem ser revistas pela unidade antes do uso com processos reais. Os nomes de etiquetas, fases e modelos de minuta são os da unidade, lidos de `docs/configuracao-unidade.md` (ver "Configuração da unidade — antes de tudo").
 
-Use quando o usuário fornecer um CSV exportado da tarefa configurada em `jef-analise-laudo-medico.tarefa_analisar_laudo` no PJe 1º grau/TRF5, ou informar diretamente na conversa uma lista de processos dessa tarefa, com Assunto principal dentro do escopo desta rotina (ver Entrada, abaixo), e pedir a análise do laudo médico pericial para a etiqueta cabível.
+Use quando o usuário fornecer um CSV exportado da tarefa configurada em `jef-analise-laudo.tarefa_analisar_laudo` no PJe 1º grau/TRF5, ou informar diretamente na conversa uma lista de processos dessa tarefa, com Assunto principal dentro do escopo desta rotina (ver Entrada, abaixo), e pedir a análise do laudo médico pericial para a etiqueta cabível.
 
 ## Limite de atuação — leia antes de tudo
 
@@ -27,7 +27,7 @@ Todo o resto desta skill deve ser mantido intacto de uma versão para a outra: n
 
 ## Configuração da unidade — antes de tudo
 
-Os dados próprios da unidade (nomes de etiquetas, de tarefas e fases do PJe, modelo de minuta, código do órgão) não estão nesta skill: ficam em `docs/configuracao-unidade.md`, na pasta do projeto. No texto abaixo, eles aparecem como referência a uma chave da configuração, na forma `<seção>.<chave>` (ex.: `jef-analise-laudo-medico.etiqueta_laudo_d` é o item `etiqueta_laudo_d` da seção `## jef-analise-laudo-medico`).
+Os dados próprios da unidade (nomes de etiquetas, de tarefas e fases do PJe, modelo de minuta, código do órgão) não estão nesta skill: ficam em `docs/configuracao-unidade.md`, na pasta do projeto. No texto abaixo, eles aparecem como referência a uma chave da configuração, na forma `<seção>.<chave>` (ex.: `jef-analise-laudo.etiqueta_laudo_d` é o item `etiqueta_laudo_d` da seção `## jef-analise-laudo`).
 
 1. Leia `docs/configuracao-unidade.md` no início de toda execução, antes da confirmação de quantitativos. Nunca de memória, nunca de cópia antiga anexada à conversa.
 2. Se o arquivo não existir, crie-o com o título `# Configuração da unidade` e acrescente as seções desta skill, preenchidas pelas respostas do usuário. O arquivo nunca vem no pacote da skill; se já existir (criado por outra skill), não o sobrescreva: só acrescente as seções e os itens que faltarem.
@@ -36,6 +36,7 @@ Os dados próprios da unidade (nomes de etiquetas, de tarefas e fases do PJe, mo
 5. Nunca use valor que não esteja no arquivo; nunca presuma nem use os valores da 7ª Vara Federal da Paraíba. Se, no meio da execução, faltar um dado, pare e pergunte, e grave a resposta no arquivo.
 6. Na seção própria desta skill, a etiqueta e a fase podem ser a mesma para mais de uma classificação (ex.: a mesma etiqueta para o adicional de 25% e para o laudo social com renda até 1/2 SM): o usuário repete o valor.
 7. O arquivo pode ser editado à mão pela unidade depois; vale sempre o que estiver nele na hora da execução.
+8. **Nome anterior da skill:** até 17/11/2026 ela se chamava `jef-analise-laudo-medico`, e a seção da configuração tinha esse nome. Se o arquivo tiver a seção `## jef-analise-laudo-medico` e não tiver `## jef-analise-laudo`, renomeie o título da seção para `## jef-analise-laudo`, mantendo os itens, e avise o usuário; não pergunte de novo o que já está respondido. Se a pasta `.claude\skills\jef-analise-laudo-medico` ainda existir, diga ao usuário que ela é a versão antiga desta skill e ofereça apagá-la (só com a confirmação dele).
 
 ### Perguntas da configuração
 
@@ -53,7 +54,7 @@ Os exemplos abaixo são **fictícios**, só para mostrar o formato; nunca os use
 
 Nesta skill é usado o `codigo_orgao` (consulta processual) e o `tribunal` (que tem de ser `TRF5`); os demais itens servem às outras skills e ao cabeçalho do relato.
 
-**Seção `## jef-analise-laudo-medico`** (própria desta skill)
+**Seção `## jef-analise-laudo`** (própria desta skill)
 
 | Chave | Pergunta | Exemplo (fictício) |
 |---|---|---|
@@ -78,7 +79,7 @@ Nesta skill é usado o `codigo_orgao` (consulta processual) e o `tribunal` (que 
 
 ### Como a configuração chega ao script
 
-Em lote, o `analise-lote.js` não traz nenhum nome de etiqueta: depois de carregá-lo (ver "Execução em lote"), monte o objeto a partir da seção `## jef-analise-laudo-medico` do arquivo, copiando o valor de cada item `etiqueta_*` tal como gravado (sem reescrever nem abreviar), e passe-o, junto com o salário mínimo conferido, numa chamada do javascript_tool:
+Em lote, o `analise-lote.js` não traz nenhum nome de etiqueta: depois de carregá-lo (ver "Execução em lote"), monte o objeto a partir da seção `## jef-analise-laudo` do arquivo, copiando o valor de cada item `etiqueta_*` tal como gravado (sem reescrever nem abreviar), e passe-o, junto com o salário mínimo conferido, numa chamada do javascript_tool:
 
 ```js
 LM.config({ sm: <salário mínimo>, etiquetas: {
@@ -95,7 +96,7 @@ O retorno diz quantas das 13 etiquetas foram configuradas; a configuração fica
 
 Os processos a analisar podem chegar de duas formas, e ambas são igualmente válidas:
 
-**A) CSV exportado do PJe.** O arquivo é gerado no PJe: Painel do usuário → coluna **TAREFAS** → ícone de seta à esquerda da tarefa configurada em `jef-analise-laudo-medico.tarefa_analisar_laudo` (confirme o nome exato da tarefa no painel; pode variar ligeiramente na grafia).
+**A) CSV exportado do PJe.** O arquivo é gerado no PJe: Painel do usuário → coluna **TAREFAS** → ícone de seta à esquerda da tarefa configurada em `jef-analise-laudo.tarefa_analisar_laudo` (confirme o nome exato da tarefa no painel; pode variar ligeiramente na grafia).
 
 Se o usuário pedir uma nova análise sem anexar um novo CSV neste pedido, use o **último CSV que ele forneceu nesta conversa** — não peça o arquivo de novo, deixando isso explícito na confirmação de quantitativos (abaixo), com o nome do arquivo e em que ponto da conversa foi fornecido. Se nenhum CSV tiver sido fornecido em nenhum momento da conversa, e o usuário também não informar uma lista de processos, peça o CSV ou a lista antes de prosseguir — não presuma.
 
@@ -115,7 +116,7 @@ Considere só os processos cujo `assuntoPrincipal` seja um dos abaixo (comparand
 
 Processo do CSV com assunto fora dessa lista **não pertence a esta rotina** — informe, na confirmação de quantitativos, quantos foram excluídos por esse motivo e não os inclua na análise.
 
-**B) Lista de processos informada na conversa** — números digitados ou colados diretamente no chat. Não havendo CSV, confirme com o usuário que todos pertencem à tarefa configurada em `jef-analise-laudo-medico.tarefa_analisar_laudo` com um dos assuntos do escopo desta rotina (acima) antes de prosseguir; não presuma isso a partir do número do processo.
+**B) Lista de processos informada na conversa** — números digitados ou colados diretamente no chat. Não havendo CSV, confirme com o usuário que todos pertencem à tarefa configurada em `jef-analise-laudo.tarefa_analisar_laudo` com um dos assuntos do escopo desta rotina (acima) antes de prosseguir; não presuma isso a partir do número do processo.
 
 ## Confirmação antes de analisar — parada obrigatória
 
@@ -164,7 +165,7 @@ O resumo traz, por processo: o laudo (ID, data, data da perícia, nascimento, id
 
 **A sugestão não é a classificação.** A classificação sai das regras desta skill, conferida nos trechos e, havendo dúvida, no laudo inteiro (`CR.textos([id], 30000)` ou `CR.busca(num, 'regex')`). Laudo digitalizado ou sem texto vai para leitura visual (`CR.img` / `CR.render`, com a aba visível).
 
-**Arquivo de andamento** (`Relatórios/Analise_Laudo_Medico_AAAA-MM-DD_andamento.txt`; havendo outro do mesmo dia, sufixo `_2`, `_3`...), criado antes do primeiro processo, com a lista, e gravado a cada processo classificado:
+**Arquivo de andamento** (`Relatórios/Analise_Laudo_AAAA-MM-DD_andamento.txt`; havendo outro do mesmo dia, sufixo `_2`, `_3`...), criado antes do primeiro processo, com a lista, e gravado a cada processo classificado:
 - `L|<n>|<processo>` — a lista do lote, na ordem;
 - `P|<processo>|<Grau>|<Subgrau>|<Duração>|<Classificação>|<Etiqueta>|<Providência>|<Movimentar para>|<Curatela>|<Documento não lido>|<Petições após o laudo>|<Proposta de acordo>|<Intimação do laudo>|<MPF>|<Fundamento>|<Sigiloso>` — as 15 colunas B a P do Entregável; a última linha P de cada processo vale. Enquanto o MARCAR TODOS COMO LIDOS não for feito, a coluna "Documento não lido" leva `PENDENTE_MTL(N)`, trocado depois pelo resultado;
 - `F|<processo>|<motivo>` — processo fora do relatório (desde 30/10/2026, o laudo social não é mais motivo: ele é classificado).
@@ -183,12 +184,12 @@ Testado em 23/10/2026 nos 30 processos do terceiro teste (CSV da tarefa de anál
 
 Antes de classificar o laudo, faça as três checagens abaixo, em todo processo. Encontrando divergência relevante em qualquer uma delas, **não classifique o laudo**.
 
-1. **Pedidos da inicial batem com o cadastro** — abra a petição inicial e confira se o pedido nela formulado corresponde ao Assunto cadastrado no processo, dentro do escopo desta rotina (ver Entrada, acima). Pedido substancialmente diferente (outro tipo de benefício, ou outra hipótese do mesmo benefício) é divergência relevante → classificação **AVISO**, com a etiqueta prescrita configurada em `jef-analise-laudo-medico.etiqueta_aviso_indefinido` e o motivo no Fundamento, para decisão humana. Exceção: o pedido de adicional de 25% sobre aposentadoria já concedida tem regra própria (ver "Pedido de adicional de 25%", abaixo).
+1. **Pedidos da inicial batem com o cadastro** — abra a petição inicial e confira se o pedido nela formulado corresponde ao Assunto cadastrado no processo, dentro do escopo desta rotina (ver Entrada, acima). Pedido substancialmente diferente (outro tipo de benefício, ou outra hipótese do mesmo benefício) é divergência relevante → classificação **AVISO**, com a etiqueta prescrita configurada em `jef-analise-laudo.etiqueta_aviso_indefinido` e o motivo no Fundamento, para decisão humana. Exceção: o pedido de adicional de 25% sobre aposentadoria já concedida tem regra própria (ver "Pedido de adicional de 25%", abaixo).
 2. **O laudo corresponde à parte autora** — confira se o nome da parte periciada no laudo é o mesmo da parte autora do processo, e se o laudo pericial foi efetivamente produzido nestes autos (não pertence a outro processo ou a outra perícia). Laudo de outra pessoa (nome divergente sem explicação nos autos) → classificação **"Complementação de laudo"** (ver "Providências que substituem a classificação", abaixo), com o motivo no Fundamento.
 
 Divergência que os próprios autos expliquem (grafia diferente do mesmo nome, nome social, retificação de registro) **não bloqueia** — registre a explicação no Fundamento e prossiga com a classificação normal. Nome com grafia um pouco diferente e o mesmo CPF no laudo e no PJe é a mesma pessoa (decisão da 7ª Vara, 23/10/2026; ex.: "FULANO DE SOUZA" e "FULANO DE SOUSA").
 
-3. **Acidente do trabalho ou de trajeto** (decisão da 7ª Vara, 23/10/2026) — se o laudo indicar que a incapacidade, a limitação ou a sequela decorre de acidente do trabalho ou de acidente de trajeto (no quesito 6.8, no 9.1, na anamnese ou em outra parte do laudo), ainda que outro quesito diga o contrário → classificação **AVISO**, etiqueta configurada em `jef-analise-laudo-medico.etiqueta_aviso_indefinido`, para decisão sobre a competência. Preencha grau, subgrau e duração do laudo e registre no Fundamento onde está a indicação do acidente.
+3. **Acidente do trabalho ou de trajeto** (decisão da 7ª Vara, 23/10/2026) — se o laudo indicar que a incapacidade, a limitação ou a sequela decorre de acidente do trabalho ou de acidente de trajeto (no quesito 6.8, no 9.1, na anamnese ou em outra parte do laudo), ainda que outro quesito diga o contrário → classificação **AVISO**, etiqueta configurada em `jef-analise-laudo.etiqueta_aviso_indefinido`, para decisão sobre a competência. Preencha grau, subgrau e duração do laudo e registre no Fundamento onde está a indicação do acidente.
 
 ~~**Processo na fila só por causa do laudo social** (decisão da 7ª Vara, 23/10/2026): o processo não entra no relatório e é listado à parte.~~ Substituído em 30/10/2026: o laudo social passa a ser analisado por esta skill (ver "Laudo social — BPC ao deficiente e ao idoso").
 
@@ -199,17 +200,17 @@ Regras do Setor de Perícias (documento "Dúvidas esclarecidas e análise do lau
 Classifique nesta ordem; a primeira que se aplicar define a linha:
 
 1. **Endereço** — a assistente social informa que **não encontrou o endereço**, que há **divergência sobre o real endereço** ou que a **parte autora se mudou** → classificação **"Social - esclarecer localização"**:
-   - etiqueta configurada em `jef-analise-laudo-medico.etiqueta_social_esclarecer_localizacao`;
+   - etiqueta configurada em `jef-analise-laudo.etiqueta_social_esclarecer_localizacao`;
    - providência: intimar a parte autora para indicar o endereço, para realizar a diligência.
-2. **Divergência** — a assistente social informa **divergências entre o afirmado pela parte autora e as suas observações** (composição do grupo familiar, renda, moradia etc.) → classificação **"Social - divergência"**, etiqueta configurada em `jef-analise-laudo-medico.etiqueta_social_divergencia`, qualquer que seja a renda.
+2. **Divergência** — a assistente social informa **divergências entre o afirmado pela parte autora e as suas observações** (composição do grupo familiar, renda, moradia etc.) → classificação **"Social - divergência"**, etiqueta configurada em `jef-analise-laudo.etiqueta_social_divergencia`, qualquer que seja a renda.
 3. **Renda per capita** do grupo familiar, comparada com **metade do salário mínimo vigente** (conferido em fonte oficial, ver "Confirmação"):
-   - **até 1/2 salário mínimo** (inclusive) → classificação **"Social - renda até 1/2 SM"**, etiqueta configurada em `jef-analise-laudo-medico.etiqueta_social_renda_ate_meio_sm`;
-   - **acima de 1/2 salário mínimo** → classificação **"Social - renda acima de 1/2 SM"**, etiqueta configurada em `jef-analise-laudo-medico.etiqueta_social_renda_acima_meio_sm`.
+   - **até 1/2 salário mínimo** (inclusive) → classificação **"Social - renda até 1/2 SM"**, etiqueta configurada em `jef-analise-laudo.etiqueta_social_renda_ate_meio_sm`;
+   - **acima de 1/2 salário mínimo** → classificação **"Social - renda acima de 1/2 SM"**, etiqueta configurada em `jef-analise-laudo.etiqueta_social_renda_acima_meio_sm`.
 
 **De onde sai a renda per capita** (decisão da 7ª Vara, 30/10/2026):
 - vale a renda per capita **informada no laudo** pela assistente social;
 - se o laudo mostrar que ela incluiu na renda do grupo o **BPC ou outro benefício de até um salário mínimo recebido por outro idoso ou pessoa com deficiência do grupo familiar** (art. 20, § 14, da Lei 8.742/1993), esse valor é **excluído** e a renda per capita é recalculada com os próprios dados do laudo (renda do grupo menos o benefício excluído, dividida pelo número de membros informado no laudo). Registre o cálculo no Fundamento;
-- laudo sem a renda per capita → **INDEFINIDO**, com a etiqueta configurada em `jef-analise-laudo-medico.etiqueta_aviso_indefinido`. A skill não calcula a renda a partir de outros documentos.
+- laudo sem a renda per capita → **INDEFINIDO**, com a etiqueta configurada em `jef-analise-laudo.etiqueta_aviso_indefinido`. A skill não calcula a renda a partir de outros documentos.
 
 **Na planilha:** Grau, Subgrau e Duração ficam em branco. O Fundamento traz a data e o ID do laudo social, a renda per capita (e o recálculo, se houver), o salário mínimo e a metade usados, a composição do grupo familiar e o trecho que motivou a classificação de endereço ou divergência. A curatela não se aplica.
 
@@ -219,16 +220,16 @@ Regras da 7ª Vara de 23/10/2026. Em cada caso abaixo o laudo **não é classifi
 
 1. **Laudo de outra pessoa** (checagem 2, acima) → classificação **"Complementação de laudo"**:
    - providência: termo ordinatório determinando que o perito anexe o laudo correto;
-   - movimentar para a fase configurada em `jef-analise-laudo-medico.fase_complementacao_laudo`;
-   - etiqueta configurada em `jef-analise-laudo-medico.etiqueta_complementacao_laudo`.
+   - movimentar para a fase configurada em `jef-analise-laudo.fase_complementacao_laudo`;
+   - etiqueta configurada em `jef-analise-laudo.etiqueta_complementacao_laudo`.
 2. **Quesitos para menores de 16 anos** — calcule a idade da parte autora **na data da perícia** (data de nascimento nos autos):
    - **até 15 anos** → o perito deve responder os **quesitos para menores de 16 anos**. Se respondeu só os quesitos de adulto → **"Complementação de laudo"**;
    - **16 ou 17 anos** → se o perito respondeu os quesitos para menores de 16 anos → **"Complementação de laudo"**;
-   - em ambos os casos: termo ordinatório para o perito complementar o laudo, movimentar para a fase `jef-analise-laudo-medico.fase_complementacao_laudo`, etiqueta `jef-analise-laudo-medico.etiqueta_complementacao_laudo`. Registre a idade e a data da perícia no Fundamento.
+   - em ambos os casos: termo ordinatório para o perito complementar o laudo, movimentar para a fase `jef-analise-laudo.fase_complementacao_laudo`, etiqueta `jef-analise-laudo.etiqueta_complementacao_laudo`. Registre a idade e a data da perícia no Fundamento.
 3. **Exames complementares** — o perito solicitou exames complementares para concluir o laudo → classificação **"Exame complementar"**:
    - providência: intimar a parte autora para providenciar os exames complementares solicitados (liste-os no Fundamento);
-   - movimentar para a fase configurada em `jef-analise-laudo-medico.fase_exame_complementar`, para aguardar o cumprimento;
-   - etiqueta configurada em `jef-analise-laudo-medico.etiqueta_exame_complementar`.
+   - movimentar para a fase configurada em `jef-analise-laudo.fase_exame_complementar`, para aguardar o cumprimento;
+   - etiqueta configurada em `jef-analise-laudo.etiqueta_exame_complementar`.
 4. **Perícia in loco** — o advogado pediu perícia no local em que a parte autora se encontra, por estar doente, presa ou internada em hospital ou clínica de reabilitação, e o pedido está pendente (não há laudo posterior a ele) → classificação **"Perícia in loco"**:
    - providência: termo ordinatório de perícia in loco; a servidora entra em contato com o perito para informá-lo do fato e saber se ele pode comparecer ao local em que a parte autora se encontra;
    - sem fase nem etiqueta próprias (colunas em branco).
@@ -243,7 +244,7 @@ Localize o laudo pericial médico mais recente juntado ao processo (havendo mais
 
 Respostas do Setor de Perícias de 30/10/2026:
 - **Laudo complementar** que responde só parte dos quesitos (por exemplo, só a DII ou só a duração): combine os dois laudos. O complementar prevalece no que responde; o original vale no restante.
-- **Duas perícias de especialidades diferentes** no mesmo processo (ex.: ortopédica e psiquiátrica, cada uma com o seu laudo): classifique cada laudo. Se os dois levarem à mesma classificação, ela vale. Se levarem a classificações diferentes → **INDEFINIDO**, com a etiqueta configurada em `jef-analise-laudo-medico.etiqueta_aviso_indefinido`, para análise humana, com as duas classificações no Fundamento.
+- **Duas perícias de especialidades diferentes** no mesmo processo (ex.: ortopédica e psiquiátrica, cada uma com o seu laudo): classifique cada laudo. Se os dois levarem à mesma classificação, ela vale. Se levarem a classificações diferentes → **INDEFINIDO**, com a etiqueta configurada em `jef-analise-laudo.etiqueta_aviso_indefinido`, para análise humana, com as duas classificações no Fundamento.
 
 As quatro hipóteses do quadro clínico:
 
@@ -290,18 +291,18 @@ O período de 2 anos conta-se sempre a partir da DII informada pelo perito, soma
 ### Pedido de adicional de 25% sobre aposentadoria já concedida
 
 Resposta do Setor de Perícias, 30/10/2026. Quando a inicial pede só o adicional de 25% (assistência permanente de terceiro) sobre aposentadoria por invalidez já concedida, isso não é mais AVISO por divergência entre pedido e assunto (checagem 1). O quesito decisivo é o da **assistência permanente de outra pessoa para as atividades da vida diária** (7.1 no modelo da 7ª Vara; 6.1 em outros modelos):
-- resposta **negativa** → classificação **"Laudo D"**, etiqueta configurada em `jef-analise-laudo-medico.etiqueta_laudo_d`;
-- resposta **positiva** → classificação **"Adicional de 25% - assistência permanente"**, etiqueta configurada em `jef-analise-laudo-medico.etiqueta_adicional_25`.
+- resposta **negativa** → classificação **"Laudo D"**, etiqueta configurada em `jef-analise-laudo.etiqueta_laudo_d`;
+- resposta **positiva** → classificação **"Adicional de 25% - assistência permanente"**, etiqueta configurada em `jef-analise-laudo.etiqueta_adicional_25`.
 
 Registre no Fundamento o quesito e a resposta.
 
 ### INDEFINIDO
 
-Laudo ilegível, não carregado, sem resposta ao quesito do quadro clínico, ou teor ambíguo quanto a grau/subgrau/duração. Não decida no escuro; registre o motivo no Fundamento — etiqueta prescrita: a configurada em `jef-analise-laudo-medico.etiqueta_aviso_indefinido`.
+Laudo ilegível, não carregado, sem resposta ao quesito do quadro clínico, ou teor ambíguo quanto a grau/subgrau/duração. Não decida no escuro; registre o motivo no Fundamento — etiqueta prescrita: a configurada em `jef-analise-laudo.etiqueta_aviso_indefinido`.
 
 ## Curatela — providência adicional (não substitui a classificação acima)
 
-Há duas hipóteses, que se somam (decisão da 7ª Vara, 23/10/2026): qualquer uma delas leva à providência de curatela, **além** da classificação normal (acima). A etiqueta de curador é sempre a configurada em `jef-analise-laudo-medico.etiqueta_curador`, copiada com a grafia exata do arquivo.
+Há duas hipóteses, que se somam (decisão da 7ª Vara, 23/10/2026): qualquer uma delas leva à providência de curatela, **além** da classificação normal (acima). A etiqueta de curador é sempre a configurada em `jef-analise-laudo.etiqueta_curador`, copiada com a grafia exata do arquivo.
 
 **Só para autor com 18 anos ou mais** na data da perícia, nas duas hipóteses (resposta do Setor de Perícias, 30/10/2026): o menor já é representado pelos pais.
 
@@ -314,7 +315,7 @@ Há duas hipóteses, que se somam (decisão da 7ª Vara, 23/10/2026): qualquer u
 
 Presentes as três, prescreva:
 - etiqueta de curador;
-- providência: intimar a parte autora para regularizar a representação processual (indicação de curador), prazo de **15 dias**, modelo de minuta configurado em `jef-analise-laudo-medico.modelo_minuta_curador`;
+- providência: intimar a parte autora para regularizar a representação processual (indicação de curador), prazo de **15 dias**, modelo de minuta configurado em `jef-analise-laudo.modelo_minuta_curador`;
 - sinalize também, no relatório, a necessidade do fluxo de pagamento da perícia — fora do alcance desta skill.
 
 **Hipótese 2** (regra da 7ª Vara de 23/10/2026) — verifique se **todas** as condições abaixo estão presentes:
@@ -373,7 +374,7 @@ Um único arquivo .xlsx, fonte Arial, uma aba `Triagem`. Uma linha por processo,
 - **Subgrau**: `leve`, `moderada` ou `acentuada`, preenchido só quando o grau for C; em branco nos demais.
 - **Duração ≥ 2 anos ou definitiva**: `sim`/`não`/`(não se aplica)` — só se aplica aos graus A e B.
 - **Classificação**: uma de `LOAS - Designar social`, `Prioridade (AD/AI/LOAS)`, `Limitação moderada ou grave`, `Laudo C`, `Laudo D`, `Adicional de 25% - assistência permanente`, `Social - esclarecer localização`, `Social - divergência`, `Social - renda até 1/2 SM`, `Social - renda acima de 1/2 SM`, `Complementação de laudo`, `Exame complementar`, `Perícia in loco`, `AVISO` ou `INDEFINIDO`.
-- **Etiqueta prescrita**: o nome exato da etiqueta correspondente, copiado da seção `## jef-analise-laudo-medico` de `docs/configuracao-unidade.md`:
+- **Etiqueta prescrita**: o nome exato da etiqueta correspondente, copiado da seção `## jef-analise-laudo` de `docs/configuracao-unidade.md`:
 
   | Classificação | Chave da etiqueta |
   |---|---|
@@ -393,8 +394,8 @@ Um único arquivo .xlsx, fonte Arial, uma aba `Triagem`. Uma linha por processo,
   | `AVISO` e `INDEFINIDO` | `etiqueta_aviso_indefinido` |
 
 - **Providência**: só nas providências que substituem a classificação — `termo ordinatório: perito anexar o laudo correto`; `termo ordinatório: perito complementar o laudo (quesitos para menores de 16 anos)`; `intimar a parte autora para providenciar os exames complementares`; `termo ordinatório de perícia in loco + contato da servidora com o perito`; no laudo social sem endereço, `intimar a parte autora para indicar o endereço para a diligência`. Nos demais casos, em branco.
-- **Movimentar para**: a fase configurada em `jef-analise-laudo-medico.fase_complementacao_laudo` (complementação de laudo) ou em `jef-analise-laudo-medico.fase_exame_complementar` (exame complementar), com o nome exato do arquivo; nos demais casos, em branco.
-- **Curatela**: `sim (prazo 15 dias, modelo <modelo_minuta_curador>)` na hipótese 1 (com o nome do modelo configurado em `jef-analise-laudo-medico.modelo_minuta_curador`) da seção Curatela; `sim (intimar o advogado para comprovar termo de curatela ou ação de interdição)` na hipótese 2; nas duas ao mesmo tempo, os dois textos, separados por ` + `; caso contrário `não`. Sempre com a etiqueta configurada em `jef-analise-laudo-medico.etiqueta_curador`, citada no Fundamento.
+- **Movimentar para**: a fase configurada em `jef-analise-laudo.fase_complementacao_laudo` (complementação de laudo) ou em `jef-analise-laudo.fase_exame_complementar` (exame complementar), com o nome exato do arquivo; nos demais casos, em branco.
+- **Curatela**: `sim (prazo 15 dias, modelo <modelo_minuta_curador>)` na hipótese 1 (com o nome do modelo configurado em `jef-analise-laudo.modelo_minuta_curador`) da seção Curatela; `sim (intimar o advogado para comprovar termo de curatela ou ação de interdição)` na hipótese 2; nas duas ao mesmo tempo, os dois textos, separados por ` + `; caso contrário `não`. Sempre com a etiqueta configurada em `jef-analise-laudo.etiqueta_curador`, citada no Fundamento.
 - **Documento não lido**: conforme a seção acima.
 - **Petições após o laudo** (coluna pedida pela 7ª Vara em 23/10/2026): as petições e manifestações das partes juntadas depois do laudo classificado, uma por item, com a data, o tipo e o ID (ex.: `DD/MM/AAAA proposta de acordo do INSS (ID <id>); DD/MM/AAAA contestação (ID <id>)`). Entram proposta de acordo, contestação, impugnação ou manifestação sobre o laudo e outras petições; não entram certidões, intimações, ofícios de pagamento do perito nem os anexos que acompanham a petição. Sem nenhuma, `não há`. A coluna só informa: não muda a classificação nem a etiqueta.
 - **Proposta de acordo**, **Intimação do laudo** e **MPF**: conforme a seção "Proposta de acordo, intimação do laudo e MPF". Só informam: não mudam a classificação nem a etiqueta.
@@ -403,7 +404,7 @@ Um único arquivo .xlsx, fonte Arial, uma aba `Triagem`. Uma linha por processo,
 
 Identifique os processos pelo número, nunca pelo nome da parte.
 
-Nome do arquivo: `Analise_Laudo_Medico_AAAA-MM-DD.xlsx`. Se o usuário tiver pasta conectada, salve lá além de entregar na conversa.
+Nome do arquivo: `Analise_Laudo_AAAA-MM-DD.xlsx`. Se o usuário tiver pasta conectada, salve lá além de entregar na conversa.
 
 ## Ao terminar
 

@@ -6,7 +6,7 @@ Copie este texto para o `CLAUDE.md` do projeto da unidade. Todas as skills da fa
 
 ## Regras que valem para toda a família de skills
 
-Valem para `jef-analise-inicial`, `jef-analise-laudo-medico`, `jef-baixa-peticao`, `jef-devolvidos-tr`, `jef-expediente-manifestacao`, `jef-fase-execucao`, `jef-conferir-rpv`, `jef-endereco-pericia` e `jef-controle-prazo`, e `jef-expedir-rpv`, e para qualquer skill nova deste projeto.
+Valem para `jef-analise-inicial`, `jef-analise-laudo`, `jef-baixa-peticao`, `jef-devolvidos-tr`, `jef-expediente-manifestacao`, `jef-fase-execucao`, `jef-conferir-rpv`, `jef-endereco-pericia` e `jef-controle-prazo`, e `jef-expedir-rpv`, e para qualquer skill nova deste projeto.
 
 **1. Só leitura. A única gravação autorizada no PJe é MARCAR TODOS COMO LIDOS.**
 
@@ -24,7 +24,7 @@ Exceção, em `jef-expedir-rpv`: no Jurisdição Delegada, elaborar RPVs (Cadast
 
 **2. Etiqueta é sempre prescrição, nunca registro.**
 
-A coluna de etiqueta do relatório (e a providência que a acompanha) diz o que a secretaria deve fazer manualmente. Não é registro de etiqueta já inserida, e nenhuma skill insere ou retira etiqueta no PJe. O mesmo vale para as providências de curatela em `jef-analise-laudo-medico`: etiqueta de curador, intimação, prazo e minuta são prescrições para execução manual.
+A coluna de etiqueta do relatório (e a providência que a acompanha) diz o que a secretaria deve fazer manualmente. Não é registro de etiqueta já inserida, e nenhuma skill insere ou retira etiqueta no PJe. O mesmo vale para as providências de curatela em `jef-analise-laudo`: etiqueta de curador, intimação, prazo e minuta são prescrições para execução manual.
 
 **3. Nunca digitar senha, certificado, token ou PIN.**
 

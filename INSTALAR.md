@@ -7,7 +7,7 @@ Estas instruções são para o **Claude Code** (a aba Code do aplicativo Claude 
 | Skill | Para que serve |
 |---|---|
 | `jef-analise-inicial` | Análise inicial dos processos do JEF |
-| `jef-analise-laudo-medico` | Análise do laudo médico e do laudo social |
+| `jef-analise-laudo` | Análise do laudo médico e do laudo social |
 | `jef-baixa-peticao` | Baixa de petições (documentos não lidos) |
 | `jef-conferir-rpv` | Conferência das RPVs no Jurisdição Delegada |
 | `jef-controle-prazo` | Controle de prazo (intimações que falharam) |
@@ -18,6 +18,8 @@ Estas instruções são para o **Claude Code** (a aba Code do aplicativo Claude 
 | `jef-fase-execucao` | Processos na fase de execução |
 
 Se a pessoa pediu uma skill que não está na tabela, diga quais existem e pergunte qual ela quer. Se pediu mais de uma, instale uma de cada vez, repetindo os passos 3 a 6. Se pediu **todas**, instale as 10 da tabela (o pacote baixado no passo 2 já traz todas; não é preciso baixar de novo).
+
+**Nome antigo:** `jef-analise-laudo-medico` foi renomeada para `jef-analise-laudo` em 17/11/2026. Se a pessoa pedir o nome antigo, instale a `jef-analise-laudo`. Depois de instalar a `jef-analise-laudo`, se existir a pasta `.claude\skills\jef-analise-laudo-medico` em Skills PJe, explique que é a versão antiga e ofereça apagá-la (só com a confirmação da pessoa); a configuração da unidade é aproveitada pela skill nova.
 
 ## Passo a passo
 

@@ -1,4 +1,4 @@
-// jef-analise-laudo-medico — script de lote (window.__LM), v1, 23/10/2026. SÓ LEITURA.
+// jef-analise-laudo — script de lote (window.__LM), v1, 23/10/2026. SÓ LEITURA.
 // Roda sobre o window.__CR do analise-lote-pje.js da jef-conferir-rpv (carregue aquele antes deste), na página estática
 // https://pje1g.trf5.jus.br/pje/js/pdfjs/web/locale/locale.json. O CR lê os processos (CR.inicia); este script, para cada
 // processo já lido, escolhe o laudo médico, baixa o texto inteiro (CR.txt), separa os quesitos e SUGERE a classificação.
@@ -9,7 +9,7 @@
 //                    classificação no andamento; resultado em LM.mk.
 // Montado a partir do auxiliar usado nos testes de 23/10/2026 na 7ª Vara Federal da Paraíba (60 processos).
 // Versão para compartilhamento (11/11/2026): os nomes das etiquetas não estão no script; vêm da configuração da unidade
-// (docs/configuracao-unidade.md, seção "## jef-analise-laudo-medico"), passada antes do início:
+// (docs/configuracao-unidade.md, seção "## jef-analise-laudo"), passada antes do início:
 //   LM.config({ sm: <salário mínimo>, etiquetas: { etiqueta_laudo_c: '...', ... } })  — guardada em LM.cfg.
 // Sem as 13 etiquetas configuradas, LM.fila não roda e diz quais faltam.
 (function () {
@@ -370,7 +370,7 @@
     if (D.mpf && D.mpfIntimado) D.mpfMot += '; o MPF já consta da certidão de intimação do laudo';
   }
 
-  // Classificação -> chave da etiqueta na configuração da unidade (seção "## jef-analise-laudo-medico").
+  // Classificação -> chave da etiqueta na configuração da unidade (seção "## jef-analise-laudo").
   // O nome da etiqueta vem de LM.cfg.etiquetas (LM.config); o script não traz nome de etiqueta de nenhuma unidade.
   const CHAVE_ETQ = {
     'Social - esclarecer localização': 'etiqueta_social_esclarecer_localizacao',
@@ -515,7 +515,7 @@
     return nums.map((n) => { const D = LM.dados[n]; return D ? (CR.ord[n] || '?') + ' ' + n.slice(0, 10) + ' ' + D.sug + ' | ' + (D.tipo === 'social' ? 'social, renda ' + (D.rpc ?? '?') : (D.grau || '-') + (D.sub ? ' ' + D.sub : '')) + ' | cur ' + String(D.cur || '-').slice(0, 20) + ' | prop ' + String(D.acordo || '-').slice(0, 30) + ' | intim ' + (D.intim || '-') + ' | ' + (D.mpf || 'sem MPF') : n + ' -'; }).join('\n');
   };
   // Salário mínimo vigente, conferido pela skill em fonte oficial a cada execução (critério de renda do laudo social),
-  // e etiquetas da unidade (docs/configuracao-unidade.md, seção "## jef-analise-laudo-medico"), com as chaves de CHAVES.
+  // e etiquetas da unidade (docs/configuracao-unidade.md, seção "## jef-analise-laudo"), com as chaves de CHAVES.
   LM.config = function (o) {
     if (o && o.sm) { LM.sm = +o.sm; LM.cfg.sm = LM.sm; }
     if (o && o.etiquetas) {

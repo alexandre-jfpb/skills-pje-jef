@@ -1,5 +1,5 @@
 ﻿param([Parameter(Mandatory)][string]$Andamento, [Parameter(Mandatory)][string]$Saida)
-# jef-analise-laudo-medico — gera o .xlsx (aba Triagem, 16 colunas, Arial) a partir do arquivo de andamento, nunca da memória da conversa.
+# jef-analise-laudo — gera o .xlsx (aba Triagem, 16 colunas, Arial) a partir do arquivo de andamento, nunca da memória da conversa.
 # Andamento:
 #   L|<n>|<processo>                       lista do lote, na ordem
 #   P|<processo>|<15 colunas B..P>         resultado; a última linha P de cada processo vale
