@@ -1,0 +1,62 @@
+[
+  {
+    "slug": "jef-analise-inicial",
+    "title": "Skill Análise Inicial",
+    "short": "Análise inicial dos processos do JEF: requisitos da petição inicial, documentos obrigatórios, competência, cadastro das partes, prevenção e etiquetas de perícia médica e social.",
+    "n": 9
+  },
+  {
+    "slug": "jef-analise-laudo-medico",
+    "title": "Skill Análise de Laudo",
+    "short": "Para a fila de análise de laudos periciais: classifica o laudo médico e o laudo social e prescreve a etiqueta, a providência e, quando couber, a curatela.",
+    "n": 6
+  },
+  {
+    "slug": "jef-baixa-peticao",
+    "title": "Skill Baixa de Petição",
+    "short": "Para uma lista de processos, classifica os documentos não lidos pelos tipos de petição da rotina, gera o relatório e marca todos como lidos.",
+    "n": 4
+  },
+  {
+    "slug": "jef-conferir-rpv",
+    "title": "Skill Conferência de RPV",
+    "short": "Confere as RPVs e os precatórios do Jurisdição Delegada com os autos do PJe e, com a confirmação do usuário, envia para assinatura as requisições sem aviso.",
+    "n": 5
+  },
+  {
+    "slug": "jef-controle-prazo",
+    "title": "Skill Controle de Prazo",
+    "short": "Para a tarefa de controle de prazo em curso, verifica se a última intimação falhou e separa os processos que só precisam ser movimentados dos que precisam de nova intimação.",
+    "n": 5
+  },
+  {
+    "slug": "jef-devolvidos-tr",
+    "title": "Skill Devolvidos da TR",
+    "short": "Para os processos devolvidos pela Turma Recursal, identifica o acórdão de mérito, classifica o resultado e prescreve a etiqueta e a providência.",
+    "n": 4
+  },
+  {
+    "slug": "jef-endereco-pericia",
+    "title": "Skill Endereço da Perícia",
+    "short": "Para processos com perito médico nomeado, confere se foi juntada a certidão com o endereço da perícia depois da última nomeação.",
+    "n": 5
+  },
+  {
+    "slug": "jef-expediente-manifestacao",
+    "title": "Skill Triagem de Expedientes",
+    "short": "Triagem dos expedientes com manifestação (Laudo C/D, Planilha de Cálculo, Diligência, LOAS, Incapacidade, CEJUSC e demais rotinas), com a ação e as etiquetas de cada processo.",
+    "n": 4
+  },
+  {
+    "slug": "jef-expedir-rpv",
+    "title": "Skill Expedição de RPV",
+    "short": "Elabora as RPVs no Jurisdição Delegada com os dados dos autos do PJe e chama a conferência independente ao fim do lote.",
+    "n": 7
+  },
+  {
+    "slug": "jef-fase-execucao",
+    "title": "Skill Fase de Execução",
+    "short": "Para os processos em execução, localiza o cumprimento da obrigação de fazer, classifica o desfecho e prescreve a etiqueta e a providência.",
+    "n": 4
+  }
+]
