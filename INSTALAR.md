@@ -17,7 +17,7 @@ Estas instruções são para o **Claude Code** (a aba Code do aplicativo Claude 
 | `jef-expedir-rpv` | Expedição das RPVs no Jurisdição Delegada (instala também a `jef-conferir-rpv`) |
 | `jef-fase-execucao` | Processos na fase de execução |
 
-Se a pessoa pediu uma skill que não está na tabela, diga quais existem e pergunte qual ela quer. Se pediu mais de uma, instale uma de cada vez, repetindo os passos 3 a 6.
+Se a pessoa pediu uma skill que não está na tabela, diga quais existem e pergunte qual ela quer. Se pediu mais de uma, instale uma de cada vez, repetindo os passos 3 a 6. Se pediu **todas**, instale as 10 da tabela (o pacote baixado no passo 2 já traz todas; não é preciso baixar de novo).
 
 ## Passo a passo
 
