@@ -48,16 +48,17 @@ Use o PowerShell. A pessoa pode ter aberto a conversa em qualquer pasta: a insta
 4. **Copie os arquivos**, substituindo os da mesma skill, sem apagar nada que já esteja na pasta:
 
    ```powershell
-   robocopy $orig $dest /E /XF CLAUDE.md /NFL /NDL /NJH /NJS /NP
+   robocopy $orig $dest /E /XF CLAUDE.md configuracao-unidade.md /NFL /NDL /NJH /NJS /NP
    if ($LASTEXITCODE -ge 8) { throw "robocopy falhou ($LASTEXITCODE)" }
+   $global:LASTEXITCODE = 0
    ```
 
    O `robocopy` devolve 0 a 7 quando dá certo; não trate isso como erro.
 
 5. **Regras gerais (CLAUDE.md):**
    - se `$dest\CLAUDE.md` **não existe**, copie `$orig\CLAUDE.md` para lá;
-   - se existe e é **igual** ao do pacote (outra skill deste repositório já foi instalada), substitua;
-   - se existe e é **diferente**, não mexa nele: salve o do pacote como `$dest\CLAUDE-regras-gerais.md` e explique à pessoa que as regras gerais das skills estão nesse arquivo e que o conteúdo dele deve ser acrescentado ao CLAUDE.md (ofereça-se para fazer isso, se ela quiser).
+   - se existe e a primeira linha dele é `# Regras gerais da família de skills PJe — Juizados Especiais Federais (TRF5)` (veio de outra skill deste repositório, talvez numa versão anterior), substitua pelo do pacote;
+   - se existe e começa de outro jeito (é um CLAUDE.md da própria pessoa), não mexa nele: salve o do pacote como `$dest\CLAUDE-regras-gerais.md` e explique à pessoa que as regras gerais das skills estão nesse arquivo e que o conteúdo dele deve ser acrescentado ao CLAUDE.md (ofereça-se para fazer isso, se ela quiser).
 
    Nunca apague nem substitua `docs\configuracao-unidade.md` (as respostas da unidade) nem a pasta `Relatórios`.
 
