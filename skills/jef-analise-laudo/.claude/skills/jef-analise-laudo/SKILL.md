@@ -1,6 +1,6 @@
 ---
 name: "jef-analise-laudo"
-description: "Para processos da tarefa do PJe em que se analisa o laudo pericial (nome configurado pela unidade), com Assunto de benefício por incapacidade (Aposentadoria por Invalidez, Auxílio por Incapacidade Temporária, Auxílio-Acidente, Incapacidade Laborativa Parcial ou Permanente, Pessoa com Deficiência, ou Benefício Assistencial - Deficiente ou Idoso), a partir de CSV ou lista de processos, lê a petição inicial e o laudo pericial (o laudo médico ou, no BPC, o laudo social), classifica o grau de incapacidade/limitação e a duração, e prescreve a etiqueta cabível (LOAS - Designar social, Prioridade, Limitação moderada ou grave, Laudo C ou Laudo D), ou, no lugar dela, a providência de complementação de laudo (laudo de outra pessoa, quesitos para menores de 16 anos), de exame complementar ou de perícia in loco, com a fase para onde movimentar, e, quando cabível, a providência de curatela, gerando relatório em .xlsx — sem inserir etiqueta no PJe, para a unidade (JEF do TRF5) que a configurou em docs/configuracao-unidade.md. Desenvolvida na 7ª Vara Federal da Paraíba."
+description: "Para processos da tarefa do PJe em que se analisa o laudo pericial (nome configurado pela unidade), com Assunto de benefício por incapacidade (Aposentadoria por Invalidez, Auxílio por Incapacidade Temporária, Auxílio-Acidente, Incapacidade Laborativa Parcial ou Permanente, Pessoa com Deficiência, ou Benefício Assistencial - Deficiente ou Idoso), a partir de CSV ou lista de processos, lê a petição inicial e o laudo pericial (o laudo médico ou, no BPC, o laudo social), classifica o grau de incapacidade/limitação e a duração, e prescreve a etiqueta cabível (LOAS - Designar social, Prioridade, Incapacidade - CEJUSC, Limitação moderada ou grave, Laudo C ou Laudo D; quando as duas partes já se manifestaram sobre o laudo ou tiveram o prazo decorrido e não há MPF, as etiquetas da triagem de expediente), ou, no lugar dela, a providência de complementação de laudo (laudo de outra pessoa, quesitos para menores de 16 anos), de exame complementar ou de perícia in loco, com a fase para onde movimentar, e, quando cabível, a providência de curatela, gerando relatório em .xlsx — sem inserir etiqueta no PJe, para a unidade (JEF do TRF5) que a configurou em docs/configuracao-unidade.md. Desenvolvida na 7ª Vara Federal da Paraíba."
 ---
 
 # Análise do Laudo Pericial (médico e social) — Benefícios por Incapacidade e BPC no PJe — da unidade
@@ -37,6 +37,8 @@ Os dados próprios da unidade (nomes de etiquetas, de tarefas e fases do PJe, mo
 6. Na seção própria desta skill, a etiqueta e a fase podem ser a mesma para mais de uma classificação (ex.: a mesma etiqueta para o adicional de 25% e para o laudo social com renda até 1/2 SM): o usuário repete o valor.
 7. O arquivo pode ser editado à mão pela unidade depois; vale sempre o que estiver nele na hora da execução.
 8. **Nome anterior da skill:** até 17/11/2026 ela se chamava `jef-analise-laudo-medico`, e a seção da configuração tinha esse nome. Se o arquivo tiver a seção `## jef-analise-laudo-medico` e não tiver `## jef-analise-laudo`, renomeie o título da seção para `## jef-analise-laudo`, mantendo os itens, e avise o usuário; não pergunte de novo o que já está respondido. Se a pasta `.claude\skills\jef-analise-laudo-medico` ainda existir, diga ao usuário que ela é a versão antiga desta skill e ofereça apagá-la (só com a confirmação dele).
+9. **Item novo de 18/11/2026:** `etiqueta_incapacidade_cejusc`. Configuração gravada antes dessa data não o tem: pergunte só ele (regra 3) antes de começar.
+10. **Triagem de expediente:** a regra das partes já ouvidas (ver a seção própria) aplica as regras da `jef-expediente-manifestacao`, que tem de estar instalada na mesma pasta, com as etiquetas da configuração dela (a seção `## jef-expediente-manifestacao` e as seções comuns que ela usa: assessores e perícia social). Se a seção dela faltar ou tiver item `PENDENTE`, faça antes as perguntas da configuração daquela skill, como ela manda; sem ela instalada, avise o usuário e trate os processos com as partes já ouvidas pela etiqueta da análise do laudo, dizendo quais são.
 
 ### Perguntas da configuração
 
@@ -60,7 +62,8 @@ Nesta skill é usado o `codigo_orgao` (consulta processual) e o `tribunal` (que 
 |---|---|---|
 | `tarefa_analisar_laudo` | Nome exato, no painel de Tarefas do PJe, da tarefa em que ficam os processos com laudo pericial juntado para análise (é dela que sai o CSV). | `[JEF] Perícia - Laudo juntado` |
 | `etiqueta_loas_designar_social` | Etiqueta para laudo de incapacidade (A ou B) em BPC definitiva ou de 2 anos ou mais, ou limitação moderada/acentuada de menor de idade: o processo vai para a perícia social. | `PERÍCIA - Designar perícia social` |
-| `etiqueta_prioridade` | Etiqueta para laudo com incapacidade que dá prioridade (pedido previdenciário com A ou B; BPC com menos de 2 anos; limitação com recomendação de afastamento). | `PERÍCIA - Laudo com incapacidade (prioridade)` |
+| `etiqueta_prioridade` | Etiqueta para laudo com incapacidade que dá prioridade (BPC com menos de 2 anos; pedido previdenciário de segurado especial ou com alegação do INSS de falta de carência ou de perda da qualidade de segurado; limitação com recomendação de afastamento nesses mesmos casos). | `PERÍCIA - Laudo com incapacidade (prioridade)` |
+| `etiqueta_incapacidade_cejusc` | Etiqueta para laudo com incapacidade (A ou B, ou limitação com recomendação de afastamento) em pedido previdenciário, fora as exceções da prioridade: o processo vai para a conciliação. | `CONCILIAÇÃO - Aguardar prazo` |
 | `etiqueta_limitacao_moderada_grave` | Etiqueta para laudo com limitação moderada ou acentuada (grave), parte autora maior de idade. | `PERÍCIA - Limitação moderada/grave` |
 | `etiqueta_laudo_c` | Etiqueta para laudo com limitação leve ("Laudo C"). | `PERÍCIA - Limitação leve` |
 | `etiqueta_laudo_d` | Etiqueta para laudo sem limitação ("Laudo D"). | `PERÍCIA - Laudo negativo` |
@@ -84,13 +87,13 @@ Em lote, o `analise-lote.js` não traz nenhum nome de etiqueta: depois de carreg
 ```js
 LM.config({ sm: <salário mínimo>, etiquetas: {
   etiqueta_loas_designar_social: '<valor do arquivo>', etiqueta_prioridade: '<valor>', etiqueta_limitacao_moderada_grave: '<valor>',
-  etiqueta_laudo_c: '<valor>', etiqueta_laudo_d: '<valor>', etiqueta_adicional_25: '<valor>',
+  etiqueta_laudo_c: '<valor>', etiqueta_laudo_d: '<valor>', etiqueta_adicional_25: '<valor>', etiqueta_incapacidade_cejusc: '<valor>',
   etiqueta_social_esclarecer_localizacao: '<valor>', etiqueta_social_divergencia: '<valor>',
   etiqueta_social_renda_ate_meio_sm: '<valor>', etiqueta_social_renda_acima_meio_sm: '<valor>',
   etiqueta_complementacao_laudo: '<valor>', etiqueta_exame_complementar: '<valor>', etiqueta_aviso_indefinido: '<valor>' } })
 ```
 
-O retorno diz quantas das 13 etiquetas foram configuradas; a configuração fica em `LM.cfg`. Enquanto faltar alguma, `LM.fila` não roda e devolve "configure ... antes de iniciar", com as chaves que faltam. A etiqueta de curador, as fases e o modelo de minuta não passam pelo script: a skill os lê do arquivo ao preencher a planilha. O `gera-relatorio.ps1` não usa dado da unidade (monta o .xlsx só a partir do andamento).
+O retorno diz quantas das 14 etiquetas foram configuradas; a configuração fica em `LM.cfg`. Enquanto faltar alguma, `LM.fila` não roda e devolve "configure ... antes de iniciar", com as chaves que faltam. A etiqueta de curador, as fases e o modelo de minuta não passam pelo script: a skill os lê do arquivo ao preencher a planilha. O `gera-relatorio.ps1` não usa dado da unidade (monta o .xlsx só a partir do andamento).
 
 ## Entrada — CSV ou lista de processos na conversa
 
@@ -159,7 +162,7 @@ Use a **consulta processual**, não a fila. A consulta não vincula tarefa a nin
 Em lote, a leitura roda por dois scripts, carregados tal como estão gravados (nunca reescritos de memória), na página estática `https://pje1g.trf5.jus.br/pje/js/pdfjs/web/locale/locale.json`, pelo método de upload descrito na `jef-conferir-rpv` (seção "Execução em lote": um `<input type="file">` criado pelo javascript_tool, que executa o arquivo recebido pelo file_upload do Chrome):
 
 1. `.claude/skills/jef-conferir-rpv/analise-lote-pje.js` (`window.__CR`), sem cópia: lê os processos num iframe oculto, um processo e um documento por vez. Inicie com `CR.inicia(lista, base)` e acompanhe com `CR.estado()`. Bloqueio do PJe por excesso de acessos (`429`): espere os 10 minutos antes de retomar.
-2. `analise-lote.js` desta skill (`window.__LM`), carregado depois do primeiro. Antes, informe o salário mínimo conferido em fonte oficial e as etiquetas da configuração da unidade: `LM.config({ sm: <valor>, etiquetas: { ... } })` (ver "Como a configuração chega ao script"). Sem as 13 etiquetas, o `LM.fila` não roda. Para os processos já lidos pelo CR, `LM.fila(nums)` escolhe o laudo do perito (o "Laudo Pericial", fora os anexos e o "laudo médico" juntado pelas partes) — o médico ou, quando o laudo social for o mais recente, o social —, baixa o texto inteiro e monta o resumo; `LM.st` diz quando terminou. `LM.ver(nums)` põe os resumos no quadro da página, para ler com `get_page_text` (o retorno do javascript_tool é cortado em cerca de 1.200 caracteres).
+2. `analise-lote.js` desta skill (`window.__LM`), carregado depois do primeiro. Antes, informe o salário mínimo conferido em fonte oficial e as etiquetas da configuração da unidade: `LM.config({ sm: <valor>, etiquetas: { ... } })` (ver "Como a configuração chega ao script"). Sem as 14 etiquetas, o `LM.fila` não roda. Para os processos já lidos pelo CR, `LM.fila(nums)` escolhe o laudo do perito (o "Laudo Pericial", fora os anexos e o "laudo médico" juntado pelas partes) — o médico ou, quando o laudo social for o mais recente, o social —, baixa o texto inteiro e monta o resumo; `LM.st` diz quando terminou. `LM.ver(nums)` põe os resumos no quadro da página, para ler com `get_page_text` (o retorno do javascript_tool é cortado em cerca de 1.200 caracteres).
 
 O resumo traz, por processo: o laudo (ID, data, data da perícia, nascimento, idade, conferência do CPF ou do nome), o pedido da inicial (BPC, previdenciário ou auxílio-acidente), o quadro clínico (grau, subgrau, duração, prazo, DII, fim do prazo e intervalo), os quesitos de menor (5.2), o 7.1, o CID F, a representação, as petições posteriores ao laudo, os alertas (laudo social, pessoa diferente, acidente do trabalho ou de trajeto, exame complementar, perícia in loco) e uma sugestão de classificação, etiqueta e curatela (`SUG: …?`), com os trechos do laudo em que ela se apoia (`T-QUADRO`, `T-DURAÇÃO`, `T-DII`, `T-5.2`).
 
@@ -167,7 +170,7 @@ O resumo traz, por processo: o laudo (ID, data, data da perícia, nascimento, id
 
 **Arquivo de andamento** (`Relatórios/Analise_Laudo_AAAA-MM-DD_andamento.txt`; havendo outro do mesmo dia, sufixo `_2`, `_3`...), criado antes do primeiro processo, com a lista, e gravado a cada processo classificado:
 - `L|<n>|<processo>` — a lista do lote, na ordem;
-- `P|<processo>|<Grau>|<Subgrau>|<Duração>|<Classificação>|<Etiqueta>|<Providência>|<Movimentar para>|<Curatela>|<Documento não lido>|<Petições após o laudo>|<Proposta de acordo>|<Intimação do laudo>|<MPF>|<Fundamento>|<Sigiloso>` — as 15 colunas B a P do Entregável; a última linha P de cada processo vale. Enquanto o MARCAR TODOS COMO LIDOS não for feito, a coluna "Documento não lido" leva `PENDENTE_MTL(N)`, trocado depois pelo resultado;
+- `P|<processo>|<Grau>|<Subgrau>|<Duração>|<Classificação>|<Etiqueta>|<Ação>|<Etiqueta controle>|<Perícia social>|<Providência>|<Movimentar para>|<Curatela>|<Documento não lido>|<Petições após o laudo>|<Proposta de acordo>|<Intimação do laudo>|<MPF>|<Fundamento>|<Sigiloso>` — as 18 colunas B a S do Entregável (linha antiga, com 15, sai com as três colunas de 18/11/2026 em branco); a última linha P de cada processo vale. Enquanto o MARCAR TODOS COMO LIDOS não for feito, a coluna "Documento não lido" leva `PENDENTE_MTL(N)`, trocado depois pelo resultado;
 - `F|<processo>|<motivo>` — processo fora do relatório (desde 30/10/2026, o laudo social não é mais motivo: ele é classificado).
 
 **MARCAR TODOS COMO LIDOS:** depois de gravadas as classificações, `LM.marcaFila(nums)` chama o `CR.marca` um processo por vez, só nos que tinham documento não lido na leitura; o resultado fica em `LM.mk`. O `CR.marca` não marca se o número de não lidos mudou desde a leitura (chegou documento que ninguém leu): releia esse processo.
@@ -191,6 +194,13 @@ Testado em 23/10/2026 nos 30 processos do terceiro teste (CSV da tarefa de anál
 - **Dossiês do INSS:** os juntados como "Laudo Pericial (<CPF> …)" deixam de contar como laudo; havendo "Laudo Pericial", também o "Laudo Médico" das partes.
 - **Divergência no laudo social:** a assistente social que diz não ter sido possível confirmar a composição do grupo familiar também é sugerida como `Social - divergência`.
 - **Teste:** os 50 processos do lote foram relidos só em leitura; as 50 sugestões bateram com a classificação conferida no texto (na v3, 14 estavam erradas).
+
+**v5 (18/11/2026), com o `analise-lote-pje.js` v13:**
+- **Pedido previdenciário com incapacidade** (grau A ou B, ou limitação com afastamento): sugere `Incapacidade - CEJUSC`. Sugere `Prioridade (AD/AI/LOAS)` quando a inicial indica segurado especial (`SEGURADO ESPECIAL?`, com o trecho) ou quando uma petição do INSS afirma, para o caso, que a parte autora não tem a carência ou perdeu a qualidade de segurado (`INSS ALEGA CARÊNCIA/QUALIDADE DE SEGURADO`, com o ID e o trecho). A contestação da AGU que alega traz marcas próprias ("CONTESTAÇÃO - QS/CARÊNCIA", "PERDA DA QUALIDADE DE SEGURADO. DII POSTERIOR AO PERÍODO DE GRAÇA", "NÃO PREENCHIMENTO DA CARÊNCIA", "Impeditivo identificado — Falta de carência / qualidade de segurado"). As cláusulas padrão da proposta de acordo sobre a perda da qualidade de segurado não são alegação. A menção genérica só gera o alerta `INSS cita carência/qualidade de segurado (genérico? conferir)`.
+- **Partes ouvidas:** linha `PARTES OUVIDAS`, com, para a parte autora e para o INSS, a primeira petição posterior ao laudo ou o "Decorrido prazo de <parte>" posterior à Certidão de Intimação do laudo. Petição sem origem identificada, sem título do INSS e sem marca do INSS no início conta como da parte autora (`origem presumida`). O decurso do menor, cujo nome o PJe mostra em iniciais, é reconhecido pelas iniciais.
+- **CR v13:** guarda em `CR.mem.dec` os eventos "Decorrido prazo de …" da cronologia, sem mudar as linhas de saída das skills de RPV.
+
+**v6 (18/11/2026, regra das partes já ouvidas):** com as duas partes ouvidas, a coluna MPF em branco e uma classificação que tem rotina na triagem de expediente, o resumo traz `EXPEDIENTE: rotina <código>`; com MPF, `EXPEDIENTE: não (INTIMAR MPF)`. `LM.paraExp(nums)` devolve a lista `processo|rotina` desses processos, que vai para o script da triagem de expediente, `.claude/skills/jef-expediente-manifestacao/analise-lote.js` (`window.__EM`), carregado na mesma página pelo mesmo método, com a configuração que aquela skill manda passar: `EM.inicia(lista, 0)`, `EM.estado()` e `EM.mostra(a, b)`. Ele reabre cada um desses processos (mais um acesso ao PJe por processo; atenção ao bloqueio de 10 minutos) e lê o que a rotina pede. A `PROP` do resumo dele é sugestão; a classificação sai das regras da rotina, conferidas no texto, e as fotos se veem na tela. Proposta de acordo: vale a linha `PROPOSTA` desta skill; havendo divergência com a do expediente, confira no texto. O MARCAR TODOS COMO LIDOS continua pelo `LM.marcaFila`, nunca pelo `EM.marca`. Testado só em leitura em 45 processos de um lote real da 7ª Vara: 36 foram para as regras do expediente e 5 ficaram com a etiqueta do laudo por causa do MPF.
 
 ## Checagens preliminares — bloqueiam a classificação se divergirem
 
@@ -273,7 +283,12 @@ Localize a data de início da incapacidade (DII) informada pelo perito e o prazo
 - **Definitiva, ou sem possibilidade de estimar prazo**, **ou** intervalo entre a DII e o fim do prazo estimado **igual ou superior a 2 anos** → classificação **"LOAS - Designar social"**.
 - Intervalo **inferior a 2 anos** → classificação **"Prioridade (AD/AI/LOAS)"**.
 
-**Pedido previdenciário** (auxílio por incapacidade temporária, aposentadoria por invalidez, auxílio-acidente e demais benefícios do escopo que não sejam o BPC) → classificação **"Prioridade (AD/AI/LOAS)"**, qualquer que seja a duração (decisão da 7ª Vara, 23/10/2026: pedido previdenciário não tem perícia social). Registre a duração na coluna própria, como nos demais casos.
+**Pedido previdenciário** (auxílio por incapacidade temporária, aposentadoria por invalidez, auxílio-acidente e demais benefícios do escopo que não sejam o BPC), qualquer que seja a duração (pedido previdenciário não tem perícia social) — decisão da 7ª Vara, 18/11/2026:
+- regra → classificação **"Incapacidade - CEJUSC"**, etiqueta configurada em `jef-analise-laudo.etiqueta_incapacidade_cejusc`;
+- exceção → classificação **"Prioridade (AD/AI/LOAS)"** só quando:
+  - a parte autora é **segurada especial** (trabalhador rural em regime de economia familiar, pescador artesanal etc., conforme a inicial); ou
+  - o **INSS alegou**, na contestação ou em outra petição nos autos, **falta de carência** ou **perda da qualidade de segurado** da parte autora. Vale a alegação feita para o caso concreto; a contestação genérica que só enumera os requisitos do benefício, sem afirmar que a parte autora não os cumpre, não conta, e o indeferimento administrativo, sozinho, também não.
+- Registre no Fundamento o motivo da exceção (segurado especial, ou o ID e o trecho da alegação do INSS). Registre a duração na coluna própria, como nos demais casos.
 
 O período de 2 anos conta-se sempre a partir da DII informada pelo perito, somada ao prazo de duração por ele estimado — nunca a partir da data do laudo ou da data da perícia. Quando o perito conta o prazo "da data desta perícia", o fim do prazo é a data da perícia mais o prazo, e o intervalo vai da DII até esse fim (confirmado pela 7ª Vara em 23/10/2026; ex.: DII 05/11/2025 e 24 meses contados da perícia de 25/09/2026 → fim em 25/09/2028 → quase 3 anos).
 
@@ -283,12 +298,12 @@ O período de 2 anos conta-se sempre a partir da DII informada pelo perito, soma
 - **Parte autora maior de idade**, com subgrau **moderada** ou **acentuada (grave)** → classificação **"Limitação moderada ou grave"**.
 - Subgrau **leve**, de qualquer idade → classificação **"Laudo C"**.
 
-**Limitação COM recomendação de afastamento das atividades laborais** (resposta do Setor de Perícias, 30/10/2026): conta como incapacidade temporária → classificação **"Prioridade (AD/AI/LOAS)"**, qualquer que seja o subgrau. Sem a recomendação, vale o subgrau, como acima.
+**Limitação COM recomendação de afastamento das atividades laborais** (resposta do Setor de Perícias, 30/10/2026): conta como incapacidade temporária, qualquer que seja o subgrau, e segue a regra do grau A ou B: no BPC, classificação **"Prioridade (AD/AI/LOAS)"**; no pedido previdenciário, **"Incapacidade - CEJUSC"**, salvo as exceções do segurado especial e da alegação do INSS, que levam a "Prioridade (AD/AI/LOAS)" (decisão da 7ª Vara, 18/11/2026). Sem a recomendação, vale o subgrau, como acima.
 
 **Modelos com faixas intermediárias** (ex.: modelo com os quesitos de adulto no item 5, que gradua a limitação em leve de 10% a 30%, leve a moderada de 30% a 50% e moderada a acentuada de 50% a 70%, cada uma sem ou com recomendação de afastamento) — resposta do Setor de Perícias, 30/10/2026:
 - "leve a moderada" conta como **leve** → "Laudo C";
 - "moderada a acentuada" conta como **moderada** → "Limitação moderada ou grave" (ou "LOAS - Designar social", se o autor for menor de idade);
-- com recomendação de afastamento, qualquer faixa conta como incapacidade temporária → "Prioridade (AD/AI/LOAS)".
+- com recomendação de afastamento, qualquer faixa conta como incapacidade temporária → "Prioridade (AD/AI/LOAS)" no BPC; "Incapacidade - CEJUSC" no pedido previdenciário, salvo as exceções acima.
 
 **Menor de 16 anos** (quesitos para menores, item 5 do modelo da 7ª Vara): o grau sai do **quesito 5.2** — "SIM, de grau leve" é o subgrau leve; "moderado" e "acentuado", os subgraus moderada e acentuada; "NÃO", o grau D, com classificação "Laudo D" (confirmado pelo Setor de Perícias em 30/10/2026). Vale só o 5.2, ainda que o 5.4 (restrição ao convívio) ou o 5.7 (cuidados) apontem outro nível: a divergência é registrada no Fundamento (decisão da 7ª Vara, 23/10/2026).
 
@@ -307,6 +322,10 @@ Resposta do Setor de Perícias, 30/10/2026. Quando a inicial pede só o adiciona
 - resposta **positiva** → classificação **"Adicional de 25% - assistência permanente"**, etiqueta configurada em `jef-analise-laudo.etiqueta_adicional_25`.
 
 Registre no Fundamento o quesito e a resposta.
+
+### Partes já ouvidas sobre o laudo
+
+Com as duas partes já ouvidas e sem MPF, a etiqueta não é a da classificação do laudo, e sim a da triagem de expediente: ver "Partes já ouvidas sobre o laudo — etiquetas da triagem de expediente", abaixo.
 
 ### INDEFINIDO
 
@@ -357,7 +376,7 @@ Registre na coluna própria (ver Entregável): `sim (N) - marcados como lidos em
 
 ## Proposta de acordo, intimação do laudo e MPF — colunas informativas
 
-As três verificações valem em todo processo, com laudo médico ou social, e **não mudam a classificação nem a etiqueta**: cada uma tem a sua coluna na planilha.
+As três verificações valem em todo processo, com laudo médico ou social, e **não mudam a classificação nem a etiqueta**: cada uma tem a sua coluna na planilha. A exceção é a regra das partes já ouvidas (seção seguinte), em que o MPF decide se ela se aplica e a proposta de acordo entra nas regras da triagem de expediente.
 
 1. **Proposta de acordo** — procure, nas petições juntadas depois do laudo classificado, proposta de acordo do INSS, pelo mesmo método da `jef-expediente-manifestacao`:
    - vale o teor, não o título: "PROPOSTA DE ACORDO", "TIPO 1 - ACORDO DIRETO", "PROPOR TRANSAÇÃO", "o INSS se obriga/compromete", com os termos do acordo (DIB, DIP, RMI, percentual, atrasados, implantação);
@@ -374,24 +393,63 @@ As três verificações valem em todo processo, com laudo médico ou social, e *
    - a parte autora é **incapaz**: tem representante, curador ou tutor no polo ativo, há termo de curatela ou ação de interdição nos autos, ou o laudo indica a hipótese de curatela.
    - Nos demais casos, a coluna fica em branco. O motivo vai para o Fundamento; se o MPF já consta da certidão de intimação do laudo, diga também.
 
+## Partes já ouvidas sobre o laudo — etiquetas da triagem de expediente
+
+Decisão da 7ª Vara, 18/11/2026. Com o atraso na análise dos laudos, muitos processos já estão prontos para o passo seguinte. Nesses casos, a etiqueta de espera da análise do laudo não serve mais: valem as regras da `jef-expediente-manifestacao` para a rotina que trataria aquela etiqueta (encaminhar ao assessor, designar perícia social ou audiência, intimar sobre a proposta de acordo etc.).
+
+**1. Partes ouvidas.** Depois de classificado o laudo (médico ou social), verifique, para **cada uma das duas partes** (parte autora e INSS), se:
+- **já se manifestou sobre o laudo**: petição da parte juntada depois do laudo — manifestação ou impugnação ao laudo, ciência, contestação, alegações finais, proposta de acordo e a resposta a ela, ou outra petição que trate do laudo ou do mérito. Não contam a petição de outro assunto (substabelecimento, procuração, habilitação, mudança de endereço, simples juntada de documentos administrativos) nem os anexos; ou
+- **teve o prazo decorrido**: evento "Decorrido prazo de <parte>" na cronologia, posterior à intimação das partes sobre o laudo (Certidão de Intimação depois do laudo). Decurso de prazo anterior a essa intimação, ou de outra intimação (ex.: citação), não conta.
+
+As duas partes contam em qualquer combinação. Registre no Fundamento, para cada parte, o que foi achado (ex.: "autor: manifestação ID <id>, DD/MM/AAAA; INSS: decorrido prazo em DD/MM/AAAA").
+
+**2. Quando a regra se aplica:**
+- **as duas partes ouvidas e a coluna MPF em branco** → etiquetas da triagem de expediente (item 3);
+- **coluna MPF com `INTIMAR MPF`** → fica a classificação e a etiqueta da análise do laudo, como se as partes não tivessem sido ouvidas (no Laudo C ou D, as etiquetas `jef-analise-laudo.etiqueta_laudo_c` e `jef-analise-laudo.etiqueta_laudo_d`);
+- **só uma parte ouvida, ou nenhuma** → fica a classificação e a etiqueta da análise do laudo.
+
+**3. Rotina da triagem de expediente** que trata a etiqueta da classificação do laudo:
+
+| Classificação do laudo | Rotina da `jef-expediente-manifestacao` (código no script) |
+|---|---|
+| Laudo C | Rotina C (`C`) |
+| Laudo D (inclusive o adicional de 25% sem assistência permanente) | Rotina D (`D`) |
+| Prioridade (AD/AI/LOAS) | Rotina Incapacidade (`INC`) |
+| Limitação moderada ou grave | Rotina Limitação (`LIM`) |
+| LOAS - Designar social | Rotina LOAS Social (`LOAS`) |
+| Incapacidade - CEJUSC; Adicional de 25% - assistência permanente; Social - renda até 1/2 SM | Rotina CEJUSC (`CEJ`) |
+| Social - renda acima de 1/2 SM; Social - divergência | Rotina Laudo (Assessoria) (`LA`) |
+
+Não se aplica a `Social - esclarecer localização` (falta o endereço da parte autora), às providências que substituem a classificação, ao AVISO e ao INDEFINIDO.
+
+**4. Como classificar na rotina.** Leia, a cada execução (nunca de memória), na SKILL.md da `jef-expediente-manifestacao`, a seção "Como classificar" da rotina e a sua parte nas regras de saída, com as regras gerais de proposta de acordo, a tabela do assessor por dígito do processo e a tabela de zonas, e use as etiquetas da configuração daquela skill. Aplique-as tal como estão: proposta de acordo, profissão no laudo médico, renda per capita do processo administrativo e endereço (Rotina LOAS Social), fotos do laudo social ou do auto de constatação (miserabilidade). Caso que a rotina não prevê vai para INDEFINIDO, como lá.
+
+**5. Na planilha:**
+- **Classificação:** `<classificação do laudo> → <classificação da rotina>` (ex.: `Laudo C → SEM PROPOSTA`, `Incapacidade - CEJUSC → SEM PROPOSTA - outra profissão`, `Laudo D → COM PROPOSTA`).
+- **Etiqueta prescrita:** a etiqueta secretaria da rotina. **Ação**, **Etiqueta controle** e **Perícia social:** as da rotina.
+- **Fundamento:** além do laudo, as partes ouvidas e o que decidiu a rotina (proposta, profissão, renda, endereço ou fotos).
+- INDEFINIDO ou AVISO da rotina: `<classificação do laudo> → INDEFINIDO` (ou `→ AVISO`), Etiqueta prescrita, Ação e Perícia social em branco, e a etiqueta controle de análise humana da configuração da triagem de expediente.
+- Grau, subgrau, duração, curatela e as demais colunas são preenchidos como sempre.
+
 ## Entregável
 
 Um único arquivo .xlsx, fonte Arial, uma aba `Triagem`. Uma linha por processo, nesta ordem exata de colunas:
 
-| A | B | C | D | E | F | G | H | I | J | K | L | M | N | O | P |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Processo | Grau do laudo | Subgrau (só se C) | Duração ≥ 2 anos ou definitiva | Classificação | Etiqueta prescrita | Providência | Movimentar para | Curatela | Documento não lido | Petições após o laudo | Proposta de acordo | Intimação do laudo | MPF | Fundamento | Sigiloso |
+| A | B | C | D | E | F | G | H | I | J | K | L | M | N | O | P | Q | R | S |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Processo | Grau do laudo | Subgrau (só se C) | Duração ≥ 2 anos ou definitiva | Classificação | Etiqueta prescrita | Ação | Etiqueta controle | Perícia social | Providência | Movimentar para | Curatela | Documento não lido | Petições após o laudo | Proposta de acordo | Intimação do laudo | MPF | Fundamento | Sigiloso |
 
 - **Grau do laudo**: `A`, `B`, `C` ou `D`, conforme o quesito do quadro clínico. Em branco nos casos AVISO/INDEFINIDO em que o laudo não pôde ser lido e nas providências que substituem a classificação.
 - **Subgrau**: `leve`, `moderada` ou `acentuada`, preenchido só quando o grau for C; em branco nos demais.
 - **Duração ≥ 2 anos ou definitiva**: `sim`/`não`/`(não se aplica)` — só se aplica aos graus A e B.
-- **Classificação**: uma de `LOAS - Designar social`, `Prioridade (AD/AI/LOAS)`, `Limitação moderada ou grave`, `Laudo C`, `Laudo D`, `Adicional de 25% - assistência permanente`, `Social - esclarecer localização`, `Social - divergência`, `Social - renda até 1/2 SM`, `Social - renda acima de 1/2 SM`, `Complementação de laudo`, `Exame complementar`, `Perícia in loco`, `AVISO` ou `INDEFINIDO`.
+- **Classificação**: uma de `LOAS - Designar social`, `Prioridade (AD/AI/LOAS)`, `Incapacidade - CEJUSC`, `Limitação moderada ou grave`, `Laudo C`, `Laudo D`, `Adicional de 25% - assistência permanente`, `Social - esclarecer localização`, `Social - divergência`, `Social - renda até 1/2 SM`, `Social - renda acima de 1/2 SM`, `Complementação de laudo`, `Exame complementar`, `Perícia in loco`, `AVISO` ou `INDEFINIDO`; com as partes já ouvidas e sem MPF, `<classificação do laudo> → <classificação da rotina da triagem de expediente>` (ver a seção própria).
 - **Etiqueta prescrita**: o nome exato da etiqueta correspondente, copiado da seção `## jef-analise-laudo` de `docs/configuracao-unidade.md`:
 
   | Classificação | Chave da etiqueta |
   |---|---|
   | `LOAS - Designar social` | `etiqueta_loas_designar_social` |
   | `Prioridade (AD/AI/LOAS)` | `etiqueta_prioridade` |
+  | `Incapacidade - CEJUSC` | `etiqueta_incapacidade_cejusc` |
   | `Limitação moderada ou grave` | `etiqueta_limitacao_moderada_grave` |
   | `Laudo C` | `etiqueta_laudo_c` |
   | `Laudo D` | `etiqueta_laudo_d` |
@@ -404,6 +462,9 @@ Um único arquivo .xlsx, fonte Arial, uma aba `Triagem`. Uma linha por processo,
   | `Exame complementar` | `etiqueta_exame_complementar` |
   | `Perícia in loco` | (em branco) |
   | `AVISO` e `INDEFINIDO` | `etiqueta_aviso_indefinido` |
+  | partes já ouvidas, sem MPF (`… → …`) | a etiqueta secretaria da rotina, da configuração da `jef-expediente-manifestacao` |
+
+- **Ação**, **Etiqueta controle** e **Perícia social** (colunas de 18/11/2026): só com as partes já ouvidas e sem MPF — a ação, a etiqueta controle e a etiqueta de área da perícia social da rotina da triagem de expediente, da configuração daquela skill. Nos demais casos, em branco.
 
 - **Providência**: só nas providências que substituem a classificação — `termo ordinatório: perito anexar o laudo correto`; `termo ordinatório: perito complementar o laudo (quesitos para menores de 16 anos)`; `intimar a parte autora para providenciar os exames complementares`; `termo ordinatório de perícia in loco + contato da servidora com o perito`; no laudo social sem endereço, `intimar a parte autora para indicar o endereço para a diligência`. Nos demais casos, em branco.
 - **Movimentar para**: a fase configurada em `jef-analise-laudo.fase_complementacao_laudo` (complementação de laudo) ou em `jef-analise-laudo.fase_exame_complementar` (exame complementar), com o nome exato do arquivo; nos demais casos, em branco.
@@ -420,6 +481,6 @@ Nome do arquivo: `Analise_Laudo_AAAA-MM-DD.xlsx`. Se o usuário tiver pasta cone
 
 ## Ao terminar
 
-Relate primeiro o diagnóstico, depois os dados de apoio: quantos processos foram analisados no total, a divisão por classificação (`LOAS - Designar social`, `Prioridade`, `Limitação moderada ou grave`, `Laudo C`, `Laudo D`, `Adicional de 25% - assistência permanente`, os quatro resultados do laudo social, `Complementação de laudo`, `Exame complementar`, `Perícia in loco`, `AVISO`), quantos exigiram a providência de curatela (destacando cada um, com a hipótese, o prazo e o modelo de minuta quando houver, e lembrando, na hipótese 1, a necessidade do fluxo de pagamento da perícia), quantos tiveram MARCAR TODOS COMO LIDOS confirmado, e a relação dos AVISOS/INDEFINIDOS com o motivo de cada um. Informe também quantos processos têm proposta de acordo (e quantas aceitas, recusadas ou com contraproposta), quantos têm `FALHA NA INTIMAÇÃO` e quantos têm `INTIMAR MPF`, listando os números. Se algum processo do CSV tiver assunto diferente do escopo desta rotina, informe quantos foram excluídos por esse motivo. Informe o salário mínimo e a fonte usados no critério de renda do laudo social.
+Relate primeiro o diagnóstico, depois os dados de apoio: quantos processos foram analisados no total, a divisão por classificação (`LOAS - Designar social`, `Prioridade`, `Limitação moderada ou grave`, `Incapacidade - CEJUSC`, `Laudo C`, `Laudo D`, `Adicional de 25% - assistência permanente`, os quatro resultados do laudo social, `Complementação de laudo`, `Exame complementar`, `Perícia in loco`, `AVISO`), quantos foram para as etiquetas da triagem de expediente por terem as partes já ouvidas (por rotina e resultado) e quantos ficaram com a etiqueta do laudo por causa do MPF, quantos exigiram a providência de curatela (destacando cada um, com a hipótese, o prazo e o modelo de minuta quando houver, e lembrando, na hipótese 1, a necessidade do fluxo de pagamento da perícia), quantos tiveram MARCAR TODOS COMO LIDOS confirmado, e a relação dos AVISOS/INDEFINIDOS com o motivo de cada um. Informe também quantos processos têm proposta de acordo (e quantas aceitas, recusadas ou com contraproposta), quantos têm `FALHA NA INTIMAÇÃO` e quantos têm `INTIMAR MPF`, listando os números. Se algum processo do CSV tiver assunto diferente do escopo desta rotina, informe quantos foram excluídos por esse motivo. Informe o salário mínimo e a fonte usados no critério de renda do laudo social.
 
 Se algum processo não for encontrado na consulta ou os autos não abrirem, diga quais e por quê. Nunca relate como analisado um processo que você não conseguiu abrir.

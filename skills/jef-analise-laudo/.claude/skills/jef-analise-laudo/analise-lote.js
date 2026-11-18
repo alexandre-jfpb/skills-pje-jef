@@ -17,7 +17,7 @@
   if (!CR) return 'carregue antes o analise-lote-pje.js (window.__CR)';
   const LM = (window.__LM = window.__LM || { out: {}, dados: {}, mk: {} });
   LM.cfg = LM.cfg || { sm: null, etiquetas: {} };
-  LM.versao = 4; // v2, 30/10/2026: respostas do Setor de Perícias (afastamento, faixas, adicional de 25%, curatela 18+, outros laudos, incapacidade passada)
+  LM.versao = 6; // v2, 30/10/2026: respostas do Setor de Perícias (afastamento, faixas, adicional de 25%, curatela 18+, outros laudos, incapacidade passada)
   // v3, 16/11/2026: proposta de acordo depois do laudo (só informa, com o método da jef-expediente-manifestacao), intimação das
   // partes sobre o laudo (Intimação + Certidão de Intimação com os expedientes do INSS e da parte autora; sem ela, FALHA NA
   // INTIMAÇÃO) e MPF (cadastrado, manifestação nos autos, ou parte autora menor ou incapaz → INTIMAR MPF). Pede o CR v12.
@@ -28,6 +28,12 @@
   // réplica, emenda e pedido de homologação; laudo lido até a página 100; certidão da assistente social de endereço não
   // localizado; laudo complementar sem o quadro clínico combinado com o laudo anterior; dossiês do INSS "Laudo Pericial
   // (<CPF> …)" fora dos laudos; laudo social que não confirma a composição do grupo familiar = divergência.
+  // v5, 18/11/2026: pedido previdenciário com incapacidade (A/B ou limitação com afastamento) → "Incapacidade - CEJUSC";
+  // "Prioridade" só para segurado especial ou quando o INSS alegou falta de carência ou perda da qualidade de segurado.
+  // Linha "PARTES OUVIDAS" (manifestação depois do laudo ou "Decorrido prazo" depois da intimação do laudo). Pede o CR v13.
+  // v6, 18/11/2026: com as duas partes ouvidas e sem MPF, valem as regras da triagem de expediente para a rotina que
+  // trataria a etiqueta do laudo (C, D, INC, LIM, LOAS, CEJ, LA): marca D.exp, e LM.paraExp(nums) devolve a lista
+  // "processo|rotina" para o EM.inicia da jef-expediente-manifestacao.
 
   const norm = (t) => (t || '').replace(/\s+/g, ' ').replace(/(\d)\s*\.\s*(?=\d)/g, '$1.')
     .replace(/☒|\(\s*[xX]\s*\)|\[\s*[xX]\s*\]/g, '[X]').replace(/☐|\(\s*\)|\[\s*\]/g, '[ ]');
@@ -167,6 +173,36 @@
     return '?';
   }
 
+  // ---- v5: exceções da prioridade (Setor de Perícia, 18/11/2026) ----
+  const SEGESP_RE = /segurad[oa]s? especia(l|is)|regime de economia familiar|trabalhador[a]?\s+rural|rur[íi]cola|pescador[a]? artesanal/i;
+  // Alegação do INSS para o caso concreto (forte: entra na sugestão) × menção aos requisitos (fraca: só alerta).
+  const REQ = '(qualidade de segurad|car[êe]ncia)';
+  // Teste de 18/11/2026 (50 processos de 17/11): a proposta de acordo da AGU traz a cláusula padrão "caso ocorra a perda da
+  // qualidade de segurado, mesmo que haja posterior reingresso…", que não é alegação. A contestação que alega tem as marcas da
+  // AGU: cabeçalho "CONTESTAÇÃO - QS/CARÊNCIA", "CONTESTAÇÃO TIPO3 … PERDA DA QUALIDADE DE SEGURADO" ou "… NÃO PREENCHIMENTO DA
+  // CARÊNCIA", "Impeditivo identificado Resultado da análise Falta de carência/qualidade de segurado" e "a parte autora não
+  // preenche o requisito da carência/qualidade de segurado". Além delas, só a frase direta sobre a parte autora.
+  const ALEGA_FORTE = new RegExp('CONTESTA[ÇC][ÃA]O\\s*-\\s*QS\\s*/\\s*CAR[ÊE]NCIA|PERDA DA QUALIDADE DE SEGURAD[OA]\\s*\\.\\s*DII POSTERIOR|N[ÃA]O PREENCHIMENTO DA CAR[ÊE]NCIA'
+    + '|Impeditivo identificado\\s+Resultado da an[áa]lise\\s+Falta de ' + REQ
+    + '|(parte autora|\\bo autor|\\ba autora|requerente|demandante)\\s+n[ãa]o\\s+(preenche|preencheu|cumpre|cumpriu|mantinha|mant[ée]m|ostentava|ostenta|possu[íi]a|possui|detinha)\\s+(o requisito d[ae]\\s+|a\\s+)?' + REQ
+    + '|(parte autora|\\bo autor|\\ba autora|requerente|demandante)\\s+(j[áa]\\s+)?(havia\\s+)?perd(eu|ido)\\s+a qualidade de segurad', 'i');
+  const CONDICIONAL = /caso ocorra|se ocorrer|mesmo que|na hip[óo]tese de|eventual|exige o preenchimento|s[ãa]o requisitos|requisitos gerais|apenas ter[áa] direito|interessado n[ãa]o detinha|data do fato [ée] a [úu]nica/i;
+  const ALEGA_FRACA = new RegExp('(perda|perdeu|n[ãa]o\\s+(ostenta|mantinha|possu[íi]a|detinha)|aus[êe]ncia|falta|n[ãa]o\\s+cumpri\\w*|n[ãa]o\\s+preench\\w*)[^.]{0,60}' + REQ, 'i');
+  function alegaINSS(ds) {
+    const r = { inssReq: '', inssReqFraca: '' };
+    for (const x of ds.slice().sort((a, b) => +a.id - +b.id)) {
+      if (/^(Laudo|Certid|Intima|Of[íi]cio|Ato|Despacho|Decis|Senten|Expedi|Alvar|Mandado|Documento|Procura)/i.test(x.ti)) continue;
+      const t = norm(CR.mem.txt[x.id] || '');
+      if (!t || origem(t, x.ti) !== 'INSS') continue;
+      const mf = t.match(new RegExp('[^.]{0,20}(?:' + ALEGA_FORTE.source + ')[^.]{0,200}', 'i'));
+      if (mf && !r.inssReq) r.inssReq = 'ID ' + x.id + ', ' + (x.data || '').slice(0, 10) + ' «' + x.ti.slice(0, 30) + '»: ' + mf[0].slice(0, 260);
+      // Menção fraca: só alerta, e nunca a cláusula condicional nem o texto genérico dos requisitos.
+      const mw = !mf && [...t.matchAll(new RegExp('[^.]{0,80}(?:' + ALEGA_FRACA.source + ')[^.]{0,80}', 'gi'))].map((m) => m[0]).find((w) => !CONDICIONAL.test(w) && /parte autora|\bautora?\b|requerente|demandante/i.test(w));
+      if (mw && !r.inssReqFraca) r.inssReqFraca = 'ID ' + x.id + ', ' + (x.data || '').slice(0, 10) + ' «' + x.ti.slice(0, 30) + '»: ' + mw.slice(0, 220);
+    }
+    return r;
+  }
+
   function analisa(num) {
     const ds = CR.mem.docs[num] || [];
     const res = (CR.res[num] || '').split('\n');
@@ -178,6 +214,9 @@
     D.pedido = pedido(ti);
     D.pedTxt = win(ti, /(benef[íi]cio assistencial|amparo|LOAS|BPC|aux[íi]lio[- ]acidente|aux[íi]lio[- ]doen[çc]a|aux[íi]lio por incapacidade|aposentadoria por (invalidez|incapacidade)|benef[íi]cio por incapacidade|benef[íi]cio previdenci|restabelec|adicional de 25)/i, 60, 200);
     D.ad25Subsid = D.pedido !== 'AD25' && AD25_RE.test(ti.slice(0, 8000));
+    // v5: exceções da prioridade no pedido previdenciário (Setor de Perícia, 18/11/2026).
+    D.segEsp = win(ti, SEGESP_RE, 80, 160);
+    Object.assign(D, alegaINSS(ds));
     if (S) return social(D, S, ds);
     if (!L) { D.flags = ['SEM LAUDO MÉDICO NEM SOCIAL NA LISTA']; D.sug = 'ler pela tela?'; return D; }
     const tL = norm(CR.mem.txt[L.id]);
@@ -404,7 +443,7 @@
       const laudo = refs.length ? refs.some((id) => sobreLaudo(id)) : intims.some((x) => sobreLaudo(x.id));
       const mpf = /MINIST[ÉE]RIO P[ÚU]BLICO|\bMPF\b/i.test(exp);
       const r = { inss, autor, laudo, mpf, c, refs };
-      if (inss && autor) return { v: 'ok', mot: 'certidão ' + c.id + ' (' + c.data + '): expedientes do INSS e da parte autora' + (refs.length ? ', Intimação ' + refs.join(', ') : '') + (laudo ? ' sobre o laudo' : ' — conferir se a Intimação é sobre o laudo'), mpf, conferir: !laudo };
+      if (inss && autor) return { v: 'ok', mot: 'certidão ' + c.id + ' (' + c.data + '): expedientes do INSS e da parte autora' + (refs.length ? ', Intimação ' + refs.join(', ') : '') + (laudo ? ' sobre o laudo' : ' — conferir se a Intimação é sobre o laudo'), mpf, conferir: !laudo, c };
       if (!melhor || melhor.v === 'conferir') melhor = { v: 'FALHA NA INTIMAÇÃO', mot: 'certidão ' + c.id + ' (' + c.data + ') sem o expediente ' + (!inss && !autor ? 'do INSS e da parte autora' : !inss ? 'do INSS' : 'da parte autora'), mpf, r };
     }
     return melhor;
@@ -428,6 +467,58 @@
     D.mpf = mot.length ? 'INTIMAR MPF' : '';
     D.mpfMot = mot.join('; ') + (partes == null ? (mot.length ? '; ' : '') + 'polo passivo não lido (carregue o CR v12)' : '');
   }
+  // ---- v5: as duas partes já ouvidas sobre o laudo (Setor de Perícia, 18/11/2026) ----
+  // Manifestação: petição da parte depois do laudo (fora a de outro assunto e os anexos). Prazo: "Decorrido prazo de <parte>"
+  // posterior à Certidão de Intimação do laudo (CR.mem.dec, do CR v13; sem certidão, posterior ao laudo, com aviso).
+  const OUTRO_ASSUNTO = /substabelec|juntada d[ea] (nova )?procura|habilita[çc][ãa]o|mudan[çc]a de endere|altera[çc][ãa]o (de|do) endere|novo endere|atualiza[çc][ãa]o (de|do) endere|juntada d[oe]s? documentos administrativos/i;
+  function poloAtivo(p, pa, nomePA) {
+    const lp = letras(p);
+    if (lp.length >= 6 && letras(pa).includes(lp)) return true;
+    if (nomePA && (lp.includes(letras(nomePA)) && letras(nomePA).length >= 6)) return true;
+    if (/^([A-ZÀ-Ú]\.\s?){2,}$/.test(nomePA.trim())) {
+      const ini = p.trim().split(/\s+/).map((w) => w[0].toUpperCase()).join('');
+      return ini === letras(nomePA);
+    }
+    return false;
+  }
+  function ouvidas(num, ds, D, it) {
+    const lid = D.laudo.id;
+    const r = { autor: '', inss: '', obs: [] };
+    for (const x of ds.filter((y) => +y.id > +lid && POS_TIT.test(y.ti) && !ehAnexo(y, ds)).sort((a, b) => +a.id - +b.id)) {
+      const t = norm(CR.mem.txt[x.id] || '');
+      const o = origem(t, x.ti);
+      const s = rotulo(x) + ' ID ' + x.id + ', ' + (x.data || '').slice(0, 10);
+      const outro = !/^(Contesta|Impugna|Manifesta|Alega)/i.test(x.ti) && OUTRO_ASSUNTO.test(t.slice(0, 1500)) && !/laudo|per[íi]cia/i.test(t.slice(0, 4000));
+      if (outro) { r.obs.push('outro assunto? ' + o + ': ' + s); continue; }
+      if (o === 'INSS') { if (!r.inss) r.inss = 'manifestou (' + s + ')'; }
+      else if (o === 'autor') { if (!r.autor) r.autor = 'manifestou (' + s + ')'; }
+      // Teste de 18/11/2026: as petições sem origem identificada eram todas da parte autora (sem texto, "ciente", "ciência ao
+      // laudo", manifestação sem "advogado"). Sem título do INSS ("(P …)") e sem marca do INSS no texto, conta como da autora.
+      // A petição da parte autora que fala do "laudo pericial" logo no início sai como "perito" no origem(): conta como da
+      // autora quando se identifica como a parte ("devidamente qualificado", "por seus advogados", OAB).
+      else if ((o === '?' || (o === 'perito' && /devidamente qualificad|por (seus|suas) advogad|OAB\s*[\/:-]|ci[êe]ncia ao laudo/i.test(t))) && !tituloINSS(x.ti) && !INSS_FORTE.test(t.slice(0, 600))) { if (!r.autor) r.autor = 'manifestou (' + s + '; origem presumida)'; }
+      else r.obs.push('origem ? ' + s);
+    }
+    const base = it && it.c ? it.c : D.laudo;
+    const b = ymd(base.data);
+    const nomePA = ((D.pa || '').match(/^(.+?) CPF /) || [])[1] || '';
+    const dec = (CR.mem.dec || {})[num];
+    if (dec == null) r.obs.push('decursos de prazo não lidos (carregue o CR v13)');
+    for (const e of dec || []) {
+      const m = e.match(/Decorrido prazo de (.+?)(?: em (\d{2}\/\d{2}\/\d{4})|\.?$)/i);
+      if (!m) continue;
+      const quando = m[2] || e.slice(0, 10);
+      if (!(ymd(quando) > b)) continue;
+      const p = m[1];
+      const s = 'prazo decorrido em ' + quando + (it && it.c ? '' : ' (sem certidão de intimação: conferir)');
+      if (/INSTITUTO NACIONAL|\bINSS\b/i.test(p)) { if (!r.inss) r.inss = s; }
+      // Parte autora: qualquer nome do polo ativo (autor, representante, advogado) ou, no menor com o nome em iniciais no PJe,
+      // as iniciais do nome completo do decurso.
+      else if (poloAtivo(p, D.pa || '', nomePA)) { if (!r.autor) r.autor = s; }
+      else if (!/MINIST[ÉE]RIO|\bMPF\b/i.test(p)) r.obs.push('decurso de ' + p.slice(0, 50) + ' em ' + quando + ' (é a parte autora?)');
+    }
+    return r;
+  }
   function extras(num, D) {
     const ds = CR.mem.docs[num] || [];
     if (D.laudo) {
@@ -437,10 +528,24 @@
       if (D.pos) D.pos = D.pos.map((s) => (ac && s.includes('(ID ' + ac + ')') ? s.replace(' (ID ', ' com aceitação da proposta (ID ') : rc && s.includes('(ID ' + rc + ')') ? s.replace(' (ID ', ' com recusa da proposta (ID ') : s));
       const it = intimacao(ds, D.laudo.id, D.pa || '');
       D.intim = it.v; D.intimMot = it.mot; D.mpfIntimado = it.mpf;
+      D.ouv = ouvidas(num, ds, D, it);
     } else { D.acordo = '?'; D.intim = '?'; D.intimMot = 'sem laudo identificado'; }
     mpf(num, ds, D);
     if (D.mpf && D.mpfIntimado) D.mpfMot += '; o MPF já consta da certidão de intimação do laudo';
+    // v6: as duas partes ouvidas e sem MPF → rotina da triagem de expediente que trataria a etiqueta do laudo.
+    D.exp = ''; D.expMot = '';
+    const rot = EXP[D.sug];
+    if (!rot) D.expMot = 'classificação sem rotina no expediente';
+    else if (!(D.ouv && D.ouv.autor && D.ouv.inss)) D.expMot = D.ouv ? 'partes não ouvidas (autor ' + (D.ouv.autor ? 'sim' : 'não') + ', INSS ' + (D.ouv.inss ? 'sim' : 'não') + ')' : 'partes ouvidas não verificadas';
+    else if (D.mpf) D.expMot = 'INTIMAR MPF: fica a etiqueta do laudo';
+    else D.exp = rot;
   }
+  // Classificação do laudo → rotina da jef-expediente-manifestacao que trata a etiqueta dela (código do EM.inicia).
+  const EXP = {
+    'Laudo C': 'C', 'Laudo D': 'D', 'Prioridade (AD/AI/LOAS)': 'INC', 'Limitação moderada ou grave': 'LIM', 'LOAS - Designar social': 'LOAS',
+    'Incapacidade - CEJUSC': 'CEJ', 'Adicional de 25% - assistência permanente': 'CEJ', 'Social - renda até 1/2 SM': 'CEJ',
+    'Social - renda acima de 1/2 SM': 'LA', 'Social - divergência': 'LA',
+  };
 
   // Classificação -> chave da etiqueta na configuração da unidade (seção "## jef-analise-laudo").
   // O nome da etiqueta vem de LM.cfg.etiquetas (LM.config); o script não traz nome de etiqueta de nenhuma unidade.
@@ -453,6 +558,7 @@
     'Prioridade (AD/AI/LOAS)': 'etiqueta_prioridade',
     'Limitação moderada ou grave': 'etiqueta_limitacao_moderada_grave',
     'Laudo C': 'etiqueta_laudo_c', 'Laudo D': 'etiqueta_laudo_d',
+    'Incapacidade - CEJUSC': 'etiqueta_incapacidade_cejusc',
     'Complementação de laudo': 'etiqueta_complementacao_laudo', 'Exame complementar': 'etiqueta_exame_complementar',
     'Adicional de 25% - assistência permanente': 'etiqueta_adicional_25',
     AVISO: 'etiqueta_aviso_indefinido', INDEFINIDO: 'etiqueta_aviso_indefinido',
@@ -474,9 +580,16 @@
     if (D.outrosMed && D.outrosMed.length) f.push('OUTRO LAUDO MÉDICO: ' + D.outrosMed.join('; ') + ' — complementar: combinar (o complementar prevalece no que responde); outra especialidade: classificar os dois e, se divergirem, INDEFINIDO');
     if (D.faixa) f.push('faixa "' + D.faixa + '" lida como ' + D.sub);
     if (D.passada) f.push('INCAPACIDADE PASSADA? ' + D.passada);
+    if (D.pedido !== 'BPC') {
+      if (D.segEsp) f.push('SEGURADO ESPECIAL? ' + D.segEsp);
+      if (D.inssReq) f.push('INSS ALEGA CARÊNCIA/QUALIDADE DE SEGURADO: ' + D.inssReq);
+      else if (D.inssReqFraca) f.push('INSS cita carência/qualidade de segurado (genérico? conferir): ' + D.inssReqFraca);
+    }
     D.flags = f;
     let c = '';
     const id = D.idade;
+    // v5: previdenciário com incapacidade → CEJUSC; prioridade só nas exceções.
+    const prev = () => (D.segEsp || D.inssReq ? 'Prioridade (AD/AI/LOAS)' : 'Incapacidade - CEJUSC');
     if (D.social) c = 'FORA (laudo social)';
     else if (/DIFERENTE/.test(D.pessoa)) c = 'Complementação de laudo';
     else if (id != null && id <= 15 && !D.menorResp) c = 'Complementação de laudo';
@@ -490,13 +603,13 @@
       let g = D.grau, s = D.sub;
       if (id != null && id <= 15) { g = D.m52 === 'NÃO' ? 'D' : D.m52 ? 'C' : ''; s = D.m52 === 'NÃO' ? '' : D.m52; }
       if (g === 'A' || g === 'B') {
-        if (D.pedido !== 'BPC') c = 'Prioridade (AD/AI/LOAS)';
+        if (D.pedido !== 'BPC') c = prev();
         else if (D.dur === 'DEFINITIVA' || D.dur === 'SEM PRAZO' || (D.intervalo != null && D.intervalo >= 24)) c = 'LOAS - Designar social';
         else if (D.intervalo != null) c = 'Prioridade (AD/AI/LOAS)';
         else c = 'INDEFINIDO';
       } else if (g === 'C') {
         // Limitação COM recomendação de afastamento = incapacidade temporária (Setor de Perícias, 30/10/2026).
-        if (D.afast && !(id != null && id <= 15)) c = 'Prioridade (AD/AI/LOAS)';
+        if (D.afast && !(id != null && id <= 15)) c = D.pedido !== 'BPC' ? prev() : 'Prioridade (AD/AI/LOAS)';
         else if (s === 'leve') c = 'Laudo C';
         else if (s === 'moderada' || s === 'acentuada') c = id != null && id < 18 ? 'LOAS - Designar social' : 'Limitação moderada ou grave';
         else c = 'INDEFINIDO';
@@ -515,6 +628,8 @@
     if (!h1 && def && D.cidF && D.q71 === '—' && !(D.idade != null && D.idade < 18)) D.cur = 'conferir: laudo sem quesito de assistência permanente — procurar no texto';
   }
 
+  // v6: a etiqueta da sugestão (SUG) vale só sem a linha "EXPEDIENTE: rotina"; com ela, decide a rotina da triagem de expediente.
+  const expLinha = (D) => 'EXPEDIENTE: ' + (D.exp ? 'rotina ' + D.exp + ' (partes ouvidas, sem MPF) → classificar pelas regras da jef-expediente-manifestacao; LM.paraExp' : 'não (' + (D.expMot || '?') + ')');
   function resumo(D) {
     const L = D.laudo;
     const linhas = ['#' + (CR.ord[D.num] || '?') + ' ' + D.num + ' | sig ' + D.sig + ' | naoLidos ' + D.nl, 'PA: ' + D.pa];
@@ -528,9 +643,11 @@
         'T-DIVERGÊNCIA: ' + (D.divTxt || '—'),
         'PÓS-LAUDO: ' + (D.pos.length ? D.pos.join('; ') : 'não há'),
         'PROPOSTA: ' + D.acordo + ' | INTIMAÇÃO DO LAUDO: ' + D.intim + ' — ' + D.intimMot,
+        D.ouv ? 'PARTES OUVIDAS: autor ' + (D.ouv.autor || 'não') + ' | INSS ' + (D.ouv.inss || 'não') + (D.ouv.obs.length ? ' | obs: ' + D.ouv.obs.join('; ') : '') : '',
         'MPF: ' + (D.mpf || '—') + (D.mpfMot ? ' (' + D.mpfMot + ')' : ''),
         D.flags.length ? 'ATENÇÃO: ' + D.flags.join(' || ') : '',
         'SUG: ' + D.sug + '? | ' + D.etq,
+        expLinha(D),
       ].filter(Boolean)).join('\n');
     }
     if (!L) return linhas.concat(['SEM LAUDO MÉDICO NA LISTA', 'PEDIDO: ' + D.pedido + ' — ' + D.pedTxt, 'MPF: ' + (D.mpf || '—') + (D.mpfMot ? ' (' + D.mpfMot + ')' : ''), 'SUG: ' + D.sug]).join('\n');
@@ -541,9 +658,11 @@
     linhas.push('assistência permanente (7.1 ou 6.1): ' + D.q71 + ' | CID F: ' + (D.cidF ? 'sim' : 'não') + ' | representação: ' + (D.repr || 'nenhuma'));
     linhas.push('PÓS-LAUDO: ' + (D.pos.length ? D.pos.join('; ') : 'não há'));
     linhas.push('PROPOSTA: ' + D.acordo + ' | INTIMAÇÃO DO LAUDO: ' + D.intim + ' — ' + D.intimMot);
+    if (D.ouv) linhas.push('PARTES OUVIDAS: autor ' + (D.ouv.autor || 'não') + ' | INSS ' + (D.ouv.inss || 'não') + (D.ouv.obs.length ? ' | obs: ' + D.ouv.obs.join('; ') : ''));
     linhas.push('MPF: ' + (D.mpf || '—') + (D.mpfMot ? ' (' + D.mpfMot + ')' : ''));
     if (D.flags.length) linhas.push('ATENÇÃO: ' + D.flags.join(' || '));
     linhas.push('SUG: ' + D.sug + '? | ' + D.etq + ' | curatela ' + D.cur);
+    linhas.push(expLinha(D));
     linhas.push('T-QUADRO: ' + D.qTxt);
     linhas.push('T-DURAÇÃO: ' + D.dTxt);
     linhas.push('T-DII: ' + D.diiTxt);
@@ -592,7 +711,11 @@
   };
   // Sugestões em uma linha por processo, para comparar com o andamento.
   LM.tabela = function (nums) {
-    return nums.map((n) => { const D = LM.dados[n]; return D ? (CR.ord[n] || '?') + ' ' + n.slice(0, 10) + ' ' + D.sug + ' | ' + (D.tipo === 'social' ? 'social, renda ' + (D.rpc ?? '?') : (D.grau || '-') + (D.sub ? ' ' + D.sub : '')) + ' | cur ' + String(D.cur || '-').slice(0, 20) + ' | prop ' + String(D.acordo || '-').slice(0, 30) + ' | intim ' + (D.intim || '-') + ' | ' + (D.mpf || 'sem MPF') : n + ' -'; }).join('\n');
+    return nums.map((n) => { const D = LM.dados[n]; return D ? (CR.ord[n] || '?') + ' ' + n.slice(0, 10) + ' ' + D.sug + ' | ' + (D.tipo === 'social' ? 'social, renda ' + (D.rpc ?? '?') : (D.grau || '-') + (D.sub ? ' ' + D.sub : '')) + ' | cur ' + String(D.cur || '-').slice(0, 20) + ' | prop ' + String(D.acordo || '-').slice(0, 30) + ' | intim ' + (D.intim || '-') + ' | ouvidas ' + (D.ouv ? (D.ouv.autor ? 'A' : '-') + (D.ouv.inss ? 'I' : '-') : '?') + ' | ' + (D.mpf || 'sem MPF') + ' | exp ' + (D.exp || '-') : n + ' -'; }).join('\n');
+  };
+  // v6: lista "processo|rotina" dos processos com as partes ouvidas e sem MPF, para o EM.inicia da jef-expediente-manifestacao.
+  LM.paraExp = function (nums) {
+    return (nums || Object.keys(LM.dados)).filter((n) => LM.dados[n] && LM.dados[n].exp).map((n) => n + '|' + LM.dados[n].exp);
   };
   // Salário mínimo vigente, conferido pela skill em fonte oficial a cada execução (critério de renda do laudo social),
   // e etiquetas da unidade (docs/configuracao-unidade.md, seção "## jef-analise-laudo"), com as chaves de CHAVES.

@@ -54,7 +54,8 @@
 //   X|<processo>|<motivo>  -> não analisado
 (() => {
   const CR = (window.__CR = window.__CR || {});
-  CR.versao = 12; // v12 (16/11/2026): CR.mem.partes = polo passivo e "Outros Interessados" da tela (MPF), sem mudar as linhas de saída
+  CR.versao = 13; // v12 (16/11/2026): CR.mem.partes = polo passivo e "Outros Interessados" da tela (MPF), sem mudar as linhas de saída
+  // v13 (18/11/2026): CR.mem.dec = eventos "Decorrido prazo de <parte>" da cronologia (jef-analise-laudo), sem mudar as linhas de saída
 
   // Temporizador em Worker: com a aba em segundo plano o Chrome estrangula o setTimeout da página.
   if (!window.__wt) {
@@ -70,6 +71,7 @@
 
   CR.mem = CR.mem || { docs: {}, txt: {}, evs: {} };
   CR.mem.partes = CR.mem.partes || {};
+  CR.mem.dec = CR.mem.dec || {};
   CR.res = CR.res || {};
   CR.nl = CR.nl || {};
   CR.ord = CR.ord || {};
@@ -214,6 +216,8 @@
         if (!vistos.has(x[1])) { vistos.add(x[1]); itens.push({ t: 'd', id: x[1], titulo: x[2].replace(/\s+/g, ' ').replace(/ \d{10} EM \d{2}\/\d{2}\/\d{4} [\d:]+\)/, ')').slice(0, 90), data, origem }); }
         continue;
       }
+      // v13: o decurso de prazo fica fora dos eventos (EV) e vai só para CR.mem.dec.
+      if (/^DECORRIDO PRAZO/i.test(l)) { itens.push({ t: 'dp', txt: l.slice(0, 160), data }); continue; }
       if (!/^DECORRIDO PRAZO|^EXPEDIDA\/CERTIFICADA|^DISPONIBILIZADO NO DJ|^PUBLICADO|^EXPEDI[ÇC][ÃA]O DE|^CONCLUSOS/i.test(l)) itens.push({ t: 'e', txt: l.slice(0, 110), data });
     }
     return itens;
@@ -287,6 +291,7 @@
     CR.mem.docs[num] = all.map((x) => ({ id: x.id, ti: x.titulo, data: x.data, len: (x.text || '').length, np: x.np || 0, ct: x.ct }));
     all.forEach((x) => { CR.mem.txt[x.id] = x.text || ''; });
     CR.mem.evs[num] = itens.filter((x) => x.t === 'e').map((x) => x.data + ' ' + x.txt);
+    CR.mem.dec[num] = itens.filter((x) => x.t === 'dp').map((x) => x.data + ' ' + x.txt);
     // "Segredo de justiça? SIM/NÃO" fica no menu oculto de detalhes do cabeçalho (#maisDetalhes).
     const md = d.getElementById('maisDetalhes');
     const sig = md ? (/Segredo de justi[çc]a\W*SIM/i.test(md.textContent) ? 'SIM' : 'NÃO') : '?';

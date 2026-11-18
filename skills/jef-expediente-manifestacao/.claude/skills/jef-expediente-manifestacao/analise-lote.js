@@ -50,9 +50,11 @@
 // lida em CEJ/CIT sem petição do INSS depois dele; "TIPO 1 - ACORDO DIRETO" e "PROPOR TRANSAÇÃO" valem como proposta;
 // documentos irmãos do auto de constatação (fotos); profissão com espaço solto dentro da palavra ("p rofissão");
 // Diligência com proposta do INSS depois do despacho sugere COM PROPOSTA / aceita / recusada (regra de 19/10/2026).
+// v3 (18/11/2026): aceite da proposta com a palavra partida pelo pdf.js ("a ceitar o acordo") e petição "(A PARTE AUTORA
+// ACEITA …)" sem "(P …)" no mesmo dia lida como petição, não anexo (mesmo critério da jef-analise-laudo v4).
 (() => {
   const EM = (window.__EM = window.__EM || {});
-  EM.versao = 2;
+  EM.versao = 3;
 
   // Configuração da unidade (padrão vazio). assessorPorDigito: { '0': '<etiqueta>', ..., '9': '<etiqueta>' }.
   EM.cfg = EM.cfg || { assessorPorDigito: null };
@@ -259,9 +261,14 @@
       if (!m.some((x) => x === 'PROPOSTA' || x === 'IMPOSSIBILIDADE' || x === 'PROMESSA') && /(?<!de )acordo(?! com)|concilia[çc]/i.test(semFormula)) m.push('ACORDO?');
     }
     if (o !== 'INSS') {
-      const acTit = /aceit\w* (de |da |a )?proposta|aceite/i.test(tit);
-      if ((acTit || /(aceit|concord|anu[êe])\w*.{0,120}(proposta|acordo|termos)|(proposta|acordo).{0,150}(aceit|concord|anu[êe]ncia)/i.test(t)) && !/n[ãa]o (aceit|concord)\w*.{0,60}(proposta|acordo)|recus\w*.{0,60}(proposta|acordo)/i.test(t)) m.push('ACEITA');
-      if (/(n[ãa]o (aceit|concord)|recus|discord|rejeit)\w*.{0,80}(proposta|acordo)|(proposta|acordo).{0,60}(recus|rejeit|n[ãa]o (aceit|concord))|contra-?proposta/i.test(t)) m.push('RECUSA');
+      const acTit = /aceit\w* (de |da |a |o )?(proposta|acordo)|aceite/i.test(tit);
+      // v3: também com a palavra partida pelo pdf.js ("a ceitar o acordo"): a mesma busca no texto sem espaços
+      // (correção da jef-analise-laudo v4, 17/11/2026).
+      const tc = t.replace(/\s+/g, '').toLowerCase().replace(/deacordocom/g, '');
+      const aceita = /(aceit|concord|anu[êe])\w*.{0,120}(proposta|acordo|termos)|(proposta|acordo).{0,150}(aceit|concord|anu[êe]ncia)/i.test(t) || /(aceit|concord|anu[êe])\w{0,8}.{0,90}(proposta|acordo|termos)/.test(tc);
+      const naoAceita = /n[ãa]o (aceit|concord)\w*.{0,60}(proposta|acordo)|recus\w*.{0,60}(proposta|acordo)/i.test(t) || /n[ãa]o(aceit|concord)\w{0,8}.{0,50}(proposta|acordo)|recus\w{0,8}.{0,50}(proposta|acordo)/.test(tc);
+      if ((acTit || aceita) && !naoAceita) m.push('ACEITA');
+      if (/(n[ãa]o (aceit|concord)|recus|discord|rejeit)\w*.{0,80}(proposta|acordo)|(proposta|acordo).{0,60}(recus|rejeit|n[ãa]o (aceit|concord))|contra-?proposta/i.test(t) || naoAceita) m.push('RECUSA');
       if (/contra-?proposta/i.test(t)) m.push('CONTRAPROPOSTA');
       const dl = t.match(/(?:dila[çc][ãa]o|prorroga[çc][ãa]o|dilat[oó]ri|prazo suplementar|novo prazo|concess[ãa]o de prazo)[^.]{0,160}?(\d{1,3}|cinco|dez|quinze|vinte|trinta|quarenta|sessenta|noventa)\s*(?:\([^)]{0,25}\)\s*)?dias/i);
       if (dl || /dila[çc][ãa]o (de|do) prazo|prorroga[çc][ãa]o (de|do) prazo/i.test(t)) m.push('DILAÇÃO(' + (dl ? (NUM[dl[1].toLowerCase()] || dl[1]) : '?') + ' dias)');
@@ -300,6 +307,15 @@
     CEJ: 'tudo', CIT: 'tudo', CA: 'tudo', CT: 'tudo', LA: 'tudo', CP: 'proposta', PP: 'proposta', AP: 'proposta', EL: 'intimacao', EC: 'intimacao',
   };
 
+  // v3 (mesmo critério da jef-analise-laudo v4): "(A …)" é anexo quando é dossiê, laudo, documento etc., ou quando há a
+  // petição principal "(P …)" no mesmo dia, com id menor e próximo.
+  const ANEXO_TIT = /\(A (DOSSI|LAUDO|ANEXO|PETI[ÇC][ÃA]O \(|DOC|PROCURA|CNIS|EXTRATO|COMPROV|ATESTADO|RECEIT|EXAME|FOTO|CONTRATO|DECLARA|SABI|PLANILHA|C[ÁA]LCULO|HIST[ÓO]RICO|RELAT|QUADRO|CERTID|TELA|PRINT|CAD|RG\b|CPF\b)/i;
+  function ehAnexoA(x, docs) {
+    if (!/\(A [A-ZÀ-Ú]/.test(x.titulo)) return false;
+    if (ANEXO_TIT.test(x.titulo)) return true;
+    return docs.some((y) => /\(P /.test(y.titulo) && y.data === x.data && +y.id < +x.id && +x.id - +y.id < 300);
+  }
+
   // Lê os documentos de docs[0..ate-1] que não são do sistema nem anexos da inicial (até lim), do mais recente.
   async function lePosteriores(docs, ate, lim, out, post, rot) {
     const lista = docs.slice(0, ate);
@@ -307,7 +323,8 @@
     for (const x of lista) {
       if (lidos >= lim) { out.push('... ' + (lista.length - lista.indexOf(x)) + ' documento(s) mais antigo(s) não lido(s) pelo script'); break; }
       // "(A DOSSIÊ ...)", "(A DOCUMENTO ...)": anexo de petição do INSS — o teor está na principal "(P ...)".
-      const anexo = /\(A [A-ZÀ-Ú]/.test(x.titulo) || /^Laudo Pericial \((ANEXO|\d{11})/i.test(x.titulo);
+      // v3: "Petição (outras) (A PARTE AUTORA ACEITA O ACORDO ...)" sem "(P ...)" no mesmo dia é a própria petição.
+      const anexo = ehAnexoA(x, docs) || /^Laudo Pericial \((ANEXO|\d{11})/i.test(x.titulo);
       if (ehSistema(x.titulo) || ehAnexoInicial(x.titulo) || anexo) {
         out.push(x.data + ' ' + x.id + ' ' + x.titulo.slice(0, 50) + (x.nl ? ' [NL]' : '') + (anexo ? ' [anexo]' : ' [sistema]'));
         if (/decurso|decorrid/i.test(x.titulo)) post.push({ id: x.id, m: ['DECURSO'], o: 'sistema', i: docs.indexOf(x) });
