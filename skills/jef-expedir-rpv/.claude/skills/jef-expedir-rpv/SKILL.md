@@ -144,13 +144,14 @@ Para cada processo, a partir dos autos, identifique as requisições devidas:
 1. **Parte autora** — valor da planilha de cálculo (ou da proposta de acordo), com **destaque de honorários contratuais dentro dela** quando houver contrato e pedido expresso de destaque (ver "Destaque").
 2. **Honorários sucumbenciais** — quando o acórdão fixou honorários de sucumbência e a planilha traz o valor.
 3. **Reembolso de perícia** — quando houver ofício de pagamento de perito (ou certidão de pagamento pelo AJG) no processo.
-4. **Multa** — **não é elaborada por ora** (decisão do usuário). Havendo multa liquidada: AVISO "multa não elaborada", e **nenhuma requisição do processo é elaborada** (regra do processo, abaixo).
+4. **Multa** — multa liquidada em decisão gera RPV própria da parte autora, elaborada pelo fluxo da seção "5. RPV suplementar e RPV de multa" (fluxo testado com o usuário em 19/11/2026; elaboração normal nos lotes autorizada por ele no mesmo dia).
+5. **Suplementar** — diferença apurada por planilha da Contadoria posterior ao pagamento da RPV originária, elaborada pelo fluxo da mesma seção 5 (mesma autorização).
 
 ### Regra do processo — um problema numa requisição trava as demais do mesmo processo
 
 Regra do usuário (13/10/2026): **se houver problema em uma requisição, gera-se AVISO e as demais requisições do mesmo processo não são elaboradas.** O processo vai inteiro para "Não elaboradas", com o motivo. Os outros processos do lote seguem normalmente.
 
-"Problema" é qualquer AVISO ou dúvida (linha `Q`) que impeça a elaboração de uma das requisições do processo — inclusive representante não cadastrado no PJe, multa liquidada, duplicidade de um só tipo e precatório. Por isso, **todas as requisições do processo são analisadas e decididas antes da Etapa 1 da primeira delas**; só se nenhuma tiver problema, o processo é elaborado.
+"Problema" é qualquer AVISO ou dúvida (linha `Q`) que impeça a elaboração de uma das requisições do processo — inclusive representante não cadastrado no PJe, duplicidade de um só tipo e precatório. Multa liquidada deixou de ser problema em 19/11/2026: ela é elaborada pela seção 5. Por isso, **todas as requisições do processo são analisadas e decididas antes da Etapa 1 da primeira delas**; só se nenhuma tiver problema, o processo é elaborado.
 
 **Exceção — problema do escritório:** o nome do escritório na base do JD sem relação com o do processo para o mesmo CNPJ (nome que só acrescenta, abrevia ou varia o do processo não é problema — ver "Sociedade de advogados"), ou o escritório fora da base do JD, só aparece durante a elaboração (no "Novo" da Etapa 3, com a requisição já criada). Nesse caso, aquela requisição fica parada, com AVISO (linha `I`), e **as demais requisições do processo podem ser elaboradas**.
 
@@ -158,7 +159,7 @@ Se a elaboração de uma requisição parar por outro motivo (mensagem inesperad
 
 **Não elaborar e AVISAR** (e, pela regra do processo, não elaborar nenhuma requisição do processo):
 - **duplicidade:** já existe no JD requisição do mesmo tipo para o processo, em qualquer situação (ver "Duplicidade");
-- **requisitório complementar ou suplementar** (pedido de complementação, diferença de requisitório já pago, etc.);
+- **requisitório complementar**. A **suplementar** saiu desta lista em 19/11/2026 e é elaborada pela seção 5. Também ficam aqui os casos de diferença que não se enquadrem na seção 5;
 - **precatório:** valor da requisição acima de 60 salários mínimos vigentes — o precatório fica para depois (decisão do usuário); informe e não elabore;
 - **destaque em forma que não seja percentual** (valor fixo, honorários por êxito em valor, etc.);
 - qualquer situação não prevista nesta skill (habilitação de herdeiros, cessão do crédito da parte autora — que precisa de decisão que a defira —, autor falecido, ordem judicial especial etc.): descreva no AVISO. A cessão dos honorários contratuais não está aqui: ver "Destaque".
@@ -253,6 +254,50 @@ Registre, para cada dado, o **documento de origem** (ID do PJe). Esse registro v
 - **Certidão do AJG sem o nome do perito, anterior a ofícios de pagamento de peritos do mesmo processo** (usuário, 06/11/2026): não é perícia a mais. O reembolso conta só os ofícios. Ex.: certidão do AJG e, meses depois, ofícios de dois peritos: duas perícias, com a soma dos dois ofícios e a data-base do último ofício. Se a certidão identificar perito sem ofício próprio, a regra não se aplica: siga as demais regras desta seção.
 - **Data-base:** a data em "Nesta data foi solicitado pagamento para o profissional", no ofício (na certidão do AJG, a data da certidão); mais de uma perícia, a **última**.
 - No JD: "Reembolso a Seção Judiciária = Sim" (natureza passa a Comum). O JD inclui sozinho a beneficiária — a seção judiciária, com o nome e o CNPJ de `Comum — Unidade.secao_judiciaria_razao_social` e `.secao_judiciaria_cnpj` — e o INSS, fixa o assunto (08.01.05) e preenche a justificativa "RPV de reembolso". Só o valor principal; não há NM.
+
+### 5. RPV suplementar e RPV de multa — fluxo testado com o usuário em 19/11/2026
+
+Testado com o usuário em 19/11/2026, com o OK dele em cada passo: uma RPV suplementar e uma RPV de multa do mesmo processo, as duas enviadas para conferência. As regras abaixo são as decisões do usuário nesse teste.
+
+**Elaboração normal nos lotes, autorizada pelo usuário em 19/11/2026.** A suplementar e a multa entram no lote como os demais tipos, pela regra do processo e pela execução contínua. Continuam valendo:
+- **Texto do motivo:** o "Motivo da Confecção do novo Requisitório" segue o modelo abaixo, com os IDs e as datas das decisões do próprio processo. Em caso de dúvida sobre o texto, a pergunta vai para o fim, na linha `Q`.
+- **Primeiras execuções da v3:** nas primeiras execuções da v3 do script, uso as pausas antes do "Continuar" da Etapa 1 e do "Gravar" da Etapa 4, conferindo a tela. A requisição só é concluída se a tela bater com o que foi decidido; se não bater, vai para a linha `I` e o lote segue.
+
+**RPV suplementar** (Res. CJF 983/2026, art. 41: revisão dos cálculos com aumento depois da requisição):
+- **Quando:** planilha da Contadoria, posterior ao pagamento da RPV originária, que recalcula o devido e desconta "o valor requisitado e atualizado".
+- **Qual planilha vale** (decisão do usuário em 19/11/2026): a **mais recente da Contadoria** que recalcula todo o período e desconta o requisitado e atualizado, sem perguntar. Vale ainda que haja planilha anterior só das parcelas novas, com a concordância do INSS, e ainda que a mais recente aplique Selic ou omita meses em relação a ela. Decisão posterior que homologue a planilha anterior ou mande refazer a mais recente: AVISO.
+- **Etapa 1:**
+  - **Suplementar = Sim** (não Complementar; decisão do usuário).
+  - A marcação abre o campo obrigatório **"Data da Execução"**, que recebe a **data do ofício da RPV originária** (decisão do usuário).
+  - A data-base é a da planilha da suplementar, e o assunto e a natureza são os da parte autora.
+- **Etapa 4:**
+  - Principal, Selic e NM são os do **líquido devido** da planilha.
+  - O bloco do autor ganha o campo **"Valor Total da Execução"**, que recebe o **total realizado e atualizado da planilha** (decisão do usuário). É o valor total do crédito executado da Res. 983, art. 8º, XVIII.
+- **No Gravar:** a confirmação do valor traz também "Somatório do valor de execução das partes". O ofício sai como "Requisitório: Suplementar", com a Data da Execução.
+
+**RPV de multa (astreintes):**
+- **Valor:** o da decisão que liquidou a multa.
+- **Data-base:** a **data da decisão que liquidou a multa**. A decisão posterior que só rejeita a impugnação e a mantém não muda a data-base (decisão do usuário).
+- **Agravo:** agravo de instrumento do INSS pendente, **sem efeito suspensivo**, não impede a elaboração (decisão do usuário).
+- **Etapa 1:** **Multa Astreintes = Sim** e **natureza Comum** (decisão do usuário). O requisitório é originário.
+- **Etapa 2:** o JD só aceita multa com o assunto principal **08.05.15 – Multa Cominatória/Astreintes**. O assunto importado do PJe é excluído pelo link "excluir" da lista de assuntos, que apaga só a linha do assunto, e não a requisição. Depois:
+  - marque "Utilizar Assuntos Importados = Não";
+  - escolha o assunto 08.05 e o complemento 08.05.15;
+  - clique em "Adicionar à Lista" e em "Continuar" (`EX.assuntoMulta()`).
+- **Etapa 4:** o JD não abre o "Valor Multa" nem pede NM. O valor vai no **Valor Principal**, sem juros e sem Selic (decisão do usuário).
+- **No Gravar:**
+  - O JD pergunta "Já foram expedidos requisitórios relativos a este beneficiário oriundos deste mesmo processo de execução. Deseja confirmar o cadastro?".
+  - Aceita a pergunta, ele exige o **"Motivo da Confecção do novo Requisitório"**.
+  - A pergunta só é aceita, e o motivo só é preenchido, com o texto aprovado pelo usuário. Modelo: "RPV de multa cominatória (astreintes) liquidada na decisão ID <id>, de <data>, mantida pela decisão ID <id>, de <data>."
+- **Ofício:** Originário, natureza Comum, assunto 08.05.15, Multa Astreintes Sim, valor no Principal e o motivo.
+
+**Script:** a v3 do `expedir-lote-jd.js` reproduz esse fluxo:
+- na Etapa 1, `suplementar`/`complementar` com `dataExecucao`, `multa`, `natureza: '0'` e `pausa`, seguida de `EX.segue1`;
+- na Etapa 2 da multa, `EX.assuntoMulta`;
+- na Etapa 4, `totalExecucao` e `semNM`;
+- no Gravar, `EX.grava4(total, motivoNovo)`.
+
+Na primeira execução da v3, use as pausas.
 
 ## Duplicidade — antes de elaborar cada processo
 

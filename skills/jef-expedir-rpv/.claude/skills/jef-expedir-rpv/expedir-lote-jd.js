@@ -46,10 +46,20 @@
 //    (na troca do beneficiário, zeraContratual: [nome do antigo] leva a 0,00 o valor contratual que ficou nele)
 //   await EX.grava4(total)            -> "Gravar" da Etapa 4, só com as 2 confirmações esperadas
 //   await EX.conferencia(nr, total)   -> aceita a situação "Devolvida" só para devolvida autorizada
+//
+// v3 — RPV suplementar e RPV de multa astreintes (fluxo testado com o usuário em 19/11/2026, cada passo com o OK
+// dele; as chamadas abaixo reproduzem o que foi feito no teste — na primeira vez, use as pausas):
+//   Suplementar: EX.etapa1({..., tipo: 'autora', suplementar: true, dataExecucao, pausa: true}) e EX.segue1();
+//     EX.etapa2('autora'); EX.etapa3 como sempre; EX.etapa4({..., totalExecucao, pausa: true}) e EX.grava4(total).
+//   Multa: EX.etapa1({..., tipo: 'autora', multa: true, natureza: '0', pausa: true}) e EX.segue1();
+//     EX.assuntoMulta() (troca o assunto importado pelo 08.05.15 e continua); EX.etapa3 como sempre;
+//     EX.etapa4({..., principal: <multa>, semNM: true, pausa: true}) e EX.grava4(total, motivoNovo).
+//   motivoNovo: texto aprovado pelo usuário para o "Motivo da Confecção do novo Requisitório", que o JD exige
+//     depois da pergunta "Já foram expedidos requisitórios relativos a este beneficiário..." (aceita só com ele).
 (() => {
   const EX = (window.__EX = window.__EX || {});
   window.EX = EX;
-  EX.versao = 2;
+  EX.versao = 3;
   EX.log = EX.log || [];
   EX.cfg = EX.cfg || {};
 
@@ -112,6 +122,10 @@
   const RE_CASSANDRA = { re: /oriundos do PJe[\s\S]*Deseja import/i, nome: 'importação do Cassandra', max: 1, repeteRecusa: true };
   const RE_EXCLUI = { re: /partes que n[ãa]o tiverem valores preenchidos[\s\S]*Confirma a grava[çc][ãa]o\?/i, nome: 'exclusão de partes sem valor' };
   const RE_ENVIO = { re: /^\s*Confirma o envio para confer[êe]ncia\?\s*$/, nome: 'envio para conferência' };
+  // Novo requisitório do mesmo beneficiário no mesmo processo (multa, testado em 19/11/2026): o JD pergunta no "Gravar"
+  // da Etapa 4 e, aceita a pergunta, exige o "Motivo da Confecção do novo Requisitório" (tmp.rpv.ds_observacao_sucumbencia).
+  const RE_DUP = { re: /^\s*J[áa] foram expedidos requisit[óo]rios relativos a este benefici[áa]rio oriundos deste mesmo processo de execu[çc][ãa]o\. Deseja confirmar o cadastro\?\s*$/i, nome: 'novo requisitório do mesmo beneficiário', max: 2 };
+  const RE_EXCLUI_ASSUNTO = { re: /^\s*Deseja realmente excluir o registro\?\s*$/, nome: 'exclusão do assunto importado' };
 
   async function espera(pred, ms) {
     const t0 = Date.now();
@@ -319,7 +333,18 @@
       marca('tmp.rpv.in_natureza_credito', d.natureza || '1'); // 1 = Natureza Alimentar (padrão), 0 = Comum
       if (d.tipo === 'autora') marca('tmp.rpv.in_destaque_honorario_contratual', 'N'); // destaque vai nesta mesma RPV
     }
-    ['tmp.rpv.in_parcial', 'tmp.rpv.in_complementar', 'tmp.rpv.in_suplementar', 'tmp.rpv.in_multa_astrientes'].forEach((n) => marca(n, 'N'));
+    // Suplementar/complementar (abrem o campo obrigatório "Data da Execução", tmp.rpv.dt_execucao) e multa astreintes
+    // (teste acompanhado de 19/11/2026): d.suplementar / d.complementar = true com d.dataExecucao; d.multa = true.
+    marca('tmp.rpv.in_parcial', 'N');
+    marca('tmp.rpv.in_complementar', d.complementar ? 'S' : 'N');
+    marca('tmp.rpv.in_suplementar', d.suplementar ? 'S' : 'N');
+    marca('tmp.rpv.in_multa_astrientes', d.multa ? 'S' : 'N');
+    await sleep(500);
+    if (d.suplementar || d.complementar) {
+      if (!d.dataExecucao) return parou('suplementar/complementar sem a Data da Execução decidida');
+      if (!el('tmp.rpv.dt_execucao')) return parou('o campo Data da Execução não apareceu');
+      poe('tmp.rpv.dt_execucao', d.dataExecucao);
+    }
     marca('tmp.rpv.tp_incidente', 'SI'); // Sem Restrição
     if (!cass.ajuizamento) {
       if (!d.ajuizamento) return parou('o Cassandra não trouxe a data de ajuizamento e ela não foi informada', { cassandra: cass });
@@ -337,24 +362,31 @@
       'tmp.rpv.nr_processo_judicial': formata(d.num), 'tmp.rpv.cd_classe': '399',
       'tmp.rpv.in_natureza_credito': d.tipo === 'reembolso' ? '0' : (d.natureza || '1'),
       'tmp.rpv.in_reembolso_secao': d.tipo === 'reembolso' ? 'S' : 'N',
-      'tmp.rpv.in_parcial': 'N', 'tmp.rpv.in_complementar': 'N', 'tmp.rpv.in_suplementar': 'N', 'tmp.rpv.in_multa_astrientes': 'N', 'tmp.rpv.tp_incidente': 'SI',
+      'tmp.rpv.in_parcial': 'N', 'tmp.rpv.in_complementar': d.complementar ? 'S' : 'N', 'tmp.rpv.in_suplementar': d.suplementar ? 'S' : 'N', 'tmp.rpv.in_multa_astrientes': d.multa ? 'S' : 'N', 'tmp.rpv.tp_incidente': 'SI',
       'tmp.rpv.dt_calculo': d.dataBase, 'tmp.rpv.dt_transito_julgado': d.transito, 'tmp.rpv.dt_transito_embargos': d.embargos,
       'tmp.rpv.dt_ajuizamento': cass.ajuizamento || d.ajuizamento,
     };
     if (d.tipo !== 'reembolso') esperado['tmp.rpv.in_credito_somente_advogado'] = d.tipo === 'sucumbencia' ? 'S' : 'N';
     if (d.tipo === 'sucumbencia') esperado['tmp.rpv.in_rpv_sucumbencia'] = 'S';
     if (d.tipo === 'autora') esperado['tmp.rpv.in_destaque_honorario_contratual'] = 'N';
+    if (d.suplementar || d.complementar) esperado['tmp.rpv.dt_execucao'] = d.dataExecucao;
     const dif = Object.entries(esperado).filter(([n, v]) => valor(n) !== v).map(([n, v]) => n + ': tela "' + valor(n) + '" × esperado "' + v + '"');
     if (dif.length) return parou('campo da Etapa 1 diferente do esperado', { dif, cassandra: cass });
     if (inesperados.length) return parou('mensagem inesperada do JD', { inesperados });
-
+    // Execução acompanhada: d.pausa = true para antes do "Continuar" (que cria a requisição); depois, EX.segue1().
+    if (d.pausa) return saida({ ok: true, pausado: 'antes do Continuar da Etapa 1', cassandra: cass });
+    return EX.segue1();
+  };
+  // "Continuar" da Etapa 1 de uma requisição nova, depois de EX.etapa1({..., pausa: true}) e do OK do usuário.
+  EX.segue1 = async function () {
+    if (caminho() !== '/jd/rpv/cadastro/tela_1.wsp') return parou('a Etapa 1 não está aberta');
     escuta([]);
     const b = botao('Continuar');
     if (b.length !== 1) return parou('botão Continuar não encontrado na Etapa 1');
     const ok = await navega(() => b[0].click(), '/jd/rpv/cadastro/tela_2.wsp');
     if (!ok) return parou('o Continuar não levou à Etapa 2', { tela: caminho(), inesperados });
     const r = nrEId();
-    return saida({ ok: true, tela: 'Etapa 2', nr: r.nr, id: r.id, cassandra: cass });
+    return saida({ ok: true, tela: 'Etapa 2', nr: r.nr, id: r.id });
   };
 
   // ---------------------------------------------------------------- Etapa 2 (assunto)
@@ -373,6 +405,49 @@
     const ok = await navega(() => b[0].click(), '/jd/rpv/cadastro/tela_3.wsp');
     if (!ok) return parou('o Continuar não levou à Etapa 3', { tela: caminho(), inesperados });
     return saida({ ok: true, tela: 'Etapa 3', assunto: lista, importados });
+  };
+
+  // Etapa 2 da RPV de multa astreintes (testado em 19/11/2026): o JD só aceita o assunto principal 08.05.15
+  // (Multa Cominatória/Astreintes). Exclui o assunto importado (só a linha do assunto, dentro da requisição — o link
+  // "excluir" da lista de assuntos, tmp.excluir.id_rpv_assunto), marca "Utilizar Assuntos Importados = Não", escolhe
+  // 08.05 + 08.05.15, "Adicionar à Lista" e "Continuar".
+  EX.assuntoMulta = async function () {
+    if (caminho() !== '/jd/rpv/cadastro/tela_2.wsp') return parou('a Etapa 2 não está aberta');
+    const linhas = [...D().querySelectorAll('a')].filter((a) => /excluir/.test(a.getAttribute('onclick') || '') && /tmp\.excluir\.id_rpv_assunto/.test(a.getAttribute('href') || ''));
+    if (linhas.length > 1) return parou('mais de um assunto na lista da Etapa 2: confira pela tela');
+    if (linhas.length === 1) {
+      escuta([RE_EXCLUI_ASSUNTO]);
+      const ok = await navega(() => linhas[0].click(), '/jd/rpv/cadastro/tela_2.wsp');
+      if (!ok || inesperados.length) return parou('a exclusão do assunto importado não se completou', { inesperados });
+    }
+    escuta([]);
+    if (valor('tmp.rpv.in_tipo_assunto') !== 'N') {
+      const ok = await navega(() => marca('tmp.rpv.in_tipo_assunto', 'N'), '/jd/rpv/cadastro/tela_2.wsp');
+      if (!ok || inesperados.length) return parou('"Utilizar Assuntos Importados = Não" não recarregou a Etapa 2', { inesperados });
+    }
+    const s = el('tmp.rpv.id_assunto_judicial');
+    const oa = s && [...s.options].find((o) => /^08\.05\s/.test(o.text.trim()));
+    if (!oa) return parou('assunto 08.05 não oferecido na lista');
+    s.value = oa.value;
+    s.dispatchEvent(new (P().Event)('change', { bubbles: true }));
+    const temComp = await espera(() => { const c = el('tmp.rpv.id_complemento_assunto_judicial'); return c && [...c.options].some((o) => /^08\.05\.15\s/.test(o.text.trim())); }, 10000);
+    if (!temComp) return parou('complemento 08.05.15 não oferecido');
+    const c = el('tmp.rpv.id_complemento_assunto_judicial');
+    c.value = [...c.options].find((o) => /^08\.05\.15\s/.test(o.text.trim())).value;
+    c.dispatchEvent(new (P().Event)('change', { bubbles: true }));
+    await sleep(400);
+    const add = botao('Adicionar à Lista');
+    if (add.length !== 1) return parou('botão "Adicionar à Lista" não encontrado');
+    const ok1 = await navega(() => add[0].click(), '/jd/rpv/cadastro/tela_2.wsp');
+    if (!ok1 || inesperados.length) return parou('o assunto 08.05.15 não foi adicionado', { inesperados });
+    const t = D().body.innerText;
+    const lista = t.slice(t.indexOf('Código')).match(/\b\d{2}\.\d{2}(?:\.\d{2}){0,3}\b/g) || [];
+    if (lista.join() !== '08.05.15') return parou('lista de assuntos diferente de 08.05.15: ' + lista.join(', '));
+    const b = botao('Continuar');
+    if (b.length !== 1) return parou('botão Continuar não encontrado na Etapa 2');
+    const ok2 = await navega(() => b[0].click(), '/jd/rpv/cadastro/tela_3.wsp');
+    if (!ok2) return parou('o Continuar não levou à Etapa 3', { tela: caminho(), inesperados });
+    return saida({ ok: true, tela: 'Etapa 3', assunto: lista });
   };
 
   // ---------------------------------------------------------------- Etapa 3 (partes)
@@ -527,9 +602,17 @@
       if (!n) return parou('bloco do autor não localizado: ' + d.nomeBenef);
       pref = 'tmp.rpv[' + n + '].vl_valor_pago_';
     }
-    poe(pref + 'principal', d.principal);
+    if (d.principal) poe(pref + 'principal', d.principal);
     if (d.juros && cent(d.juros)) poe(pref + 'juros', d.juros);
     if (d.selic && cent(d.selic)) poe(pref + 'selic', d.selic);
+    // Suplementar/complementar (testado em 19/11/2026): o bloco do autor ganha o "Valor Total da Execução"
+    // (tmp.rpv[n].vl_execucao), o valor total do crédito executado (Res. CJF 983/2026, art. 8º, XVIII).
+    if (d.totalExecucao) {
+      if (!el('tmp.rpv[' + n + '].vl_execucao')) return parou('campo Valor Total da Execução não encontrado no bloco do autor');
+      poe('tmp.rpv[' + n + '].vl_execucao', d.totalExecucao);
+    }
+    // Multa astreintes (testado em 19/11/2026): o JD não abre o "Valor Multa" nem o NM; o valor vai no
+    // Valor Principal (decisão do usuário) e d.semNM = true dispensa o NM.
     await sleep(900);
     if (inesperados.length) return parou('mensagem inesperada do JD ao lançar os valores', { inesperados });
     // Devolvida refeita com troca do beneficiário do destaque: o JD lança o contratual no novo beneficiário, mas
@@ -558,7 +641,7 @@
 
     // NM (só parte autora).
     let nm = null;
-    if (d.tipo === 'autora') {
+    if (d.tipo === 'autora' && !d.semNM) {
       if (!d.nm) return parou('NM não informado para a parte autora');
       const liq = ['principal', 'juros', 'selic'].reduce((s, k) => s + cent(valor('tmp.rpv[' + n + '].vl_valor_pago_' + k)), 0);
       const ant = d.nm.ant && d.nm.ant.meses ? d.nm.ant : null;
@@ -582,28 +665,44 @@
     // Requisição devolvida (ou execução acompanhada): d.pausa = true para antes do "Gravar"; depois, EX.grava4(total).
     if (d.pausa) return saida({ ok: true, pausado: 'antes do Gravar da Etapa 4', valores, nm });
 
-    // Gravar: só as duas confirmações esperadas, a primeira com o valor exato.
-    escuta([{ re: new RegExp('Valor do requisit[óo]rio \\(R\\$\\)\\s*:\\s*' + esc(d.total) + '\\s[\\s\\S]*Confirmar Opera', 'i'), nome: 'valor do requisitório' }, RE_EXCLUI]);
-    const g = botao('Gravar');
-    if (g.length !== 1) return parou('botão Gravar não encontrado na Etapa 4');
-    const ok = await navega(() => g[0].click(), '/jd/rpv/cadastro/tela_5.wsp', 30000);
-    const dial = EX.log.slice(-3).map((x) => x.tipo + (x.ok ? ' OK' : ' RECUSADO') + ': ' + x.msg.replace(/\s+/g, ' '));
-    if (!ok || inesperados.length) return parou('a gravação da Etapa 4 não levou à Etapa 5', { tela: caminho(), inesperados, dial, valores, nm });
-    const r = nrEId();
-    return saida({ ok: true, tela: 'Etapa 5', nr: r.nr, id: r.id, valores, nm, dial });
+    return gravar(d.total, d.motivoNovo, { valores, nm });
   };
-  // "Gravar" da Etapa 4 depois de EX.etapa4({..., pausa: true}) e do OK do usuário, com as mesmas 2 confirmações.
-  EX.grava4 = async function (total) {
+  // "Gravar" da Etapa 4 depois de EX.etapa4({..., pausa: true}) e do OK do usuário, com as mesmas confirmações.
+  EX.grava4 = async function (total, motivoNovo) {
     if (caminho() !== '/jd/rpv/cadastro/tela_4.wsp') return parou('a Etapa 4 não está aberta');
-    escuta([{ re: new RegExp('Valor do requisit[óo]rio \\(R\\$\\)\\s*:\\s*' + esc(total) + '\\s[\\s\\S]*Confirmar Opera', 'i'), nome: 'valor do requisitório' }, RE_EXCLUI]);
-    const g = botao('Gravar');
-    if (g.length !== 1) return parou('botão Gravar não encontrado na Etapa 4');
-    const ok = await navega(() => g[0].click(), '/jd/rpv/cadastro/tela_5.wsp', 30000);
-    const dial = EX.log.slice(-3).map((x) => x.tipo + (x.ok ? ' OK' : ' RECUSADO') + ': ' + x.msg.replace(/\s+/g, ' '));
-    if (!ok || inesperados.length) return parou('a gravação da Etapa 4 não levou à Etapa 5', { tela: caminho(), inesperados, dial });
-    const r = nrEId();
-    return saida({ ok: true, tela: 'Etapa 5', nr: r.nr, id: r.id, dial });
+    return gravar(total, motivoNovo, {});
   };
+  // Gravar: só as duas confirmações esperadas, a primeira com o valor exato (na suplementar, ela traz também o
+  // "Somatório do valor de execução das partes", aceito pela mesma expressão). Com motivoNovo — texto aprovado pelo
+  // usuário para o novo requisitório do mesmo beneficiário no mesmo processo —, aceita também a pergunta RE_DUP;
+  // testado em 19/11/2026: aceita a pergunta, o JD recarrega a Etapa 4 e passa a exigir o "Motivo da
+  // Confecção do novo Requisitório"; o script o preenche e grava de novo.
+  async function gravar(total, motivoNovo, extra) {
+    const reValor = { re: new RegExp('Valor do requisit[óo]rio \\(R\\$\\)\\s*:\\s*' + esc(total) + '\\s[\\s\\S]*Confirmar Opera', 'i'), nome: 'valor do requisitório' };
+    const lista = motivoNovo ? [reValor, RE_EXCLUI, RE_DUP] : [reValor, RE_EXCLUI];
+    const campoMotivo = 'tmp.rpv.ds_observacao_sucumbencia';
+    if (motivoNovo && visivel(el(campoMotivo))) poe(campoMotivo, motivoNovo);
+    for (let tent = 0; tent < 2; tent++) {
+      escuta(lista);
+      const g = botao('Gravar');
+      if (g.length !== 1) return parou('botão Gravar não encontrado na Etapa 4');
+      // Sem motivoNovo, espera a Etapa 5, como sempre; com ele, qualquer recarga (a Etapa 4 volta depois da pergunta).
+      const ok = await navega(() => g[0].click(), motivoNovo && tent === 0 ? null : '/jd/rpv/cadastro/tela_5.wsp', 30000);
+      const dial = EX.log.slice(-4).map((x) => x.tipo + (x.ok ? ' OK' : ' RECUSADO') + ': ' + x.msg.replace(/\s+/g, ' '));
+      if (ok && caminho() === '/jd/rpv/cadastro/tela_5.wsp' && !inesperados.length) {
+        const r = nrEId();
+        return saida(Object.assign({ ok: true, tela: 'Etapa 5', nr: r.nr, id: r.id, dial }, extra));
+      }
+      if (motivoNovo && tent === 0 && ok && caminho() === '/jd/rpv/cadastro/tela_4.wsp' && !inesperados.length && el(campoMotivo)) {
+        poe(campoMotivo, motivoNovo);
+        await sleep(400);
+        if (valor(campoMotivo) !== motivoNovo) return parou('o Motivo da Confecção do novo Requisitório não ficou preenchido');
+        continue;
+      }
+      return parou('a gravação da Etapa 4 não levou à Etapa 5', Object.assign({ tela: caminho(), inesperados, dial }, extra));
+    }
+    return parou('a gravação da Etapa 4 não levou à Etapa 5 (segunda tentativa)', { tela: caminho() });
+  }
 
   // ---------------------------------------------------------------- Ofício e Enviar para Conferência
   EX.oficio = async function (id) {

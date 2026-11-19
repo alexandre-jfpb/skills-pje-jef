@@ -285,8 +285,30 @@ Registre sempre o **número do documento** em que o cálculo usado foi encontrad
 - Nunca presuma nada pelo nome do arquivo juntado ao processo: sempre analise o teor do documento.
 
 **4. Multa** → o valor é o **liquidado na decisão**. Pode haver mais de uma decisão liquidando a multa: nesse caso, **some todas** para apurar o valor da RPV e **AVISE sempre**, listando cada decisão (documento, data e valor).
+- **Como a RPV de multa sai no JD** (usuário, 19/11/2026; fluxo testado na expedição). Confere, sem AVISO, a requisição com:
+  - assunto **08.05.15 – Multa Cominatória/Astreintes**, o único que o JD aceita com Multa Astreintes = Sim;
+  - **natureza Comum** e requisitório originário;
+  - valor no **Valor Principal**, sem juros e sem Selic, porque o JD não abre o "Valor Multa";
+  - sem NM;
+  - o "Motivo do novo Requisitório" preenchido.
+- **Decisão que só mantém a multa:** a decisão posterior que rejeita a impugnação e mantém a multa, sem nova liquidação, não é outra liquidação. Não se soma, e o valor é o da decisão que liquidou.
+- **Agravo pendente:** agravo de instrumento do INSS pendente, sem efeito suspensivo, não é AVISO (decisão do usuário).
 
 **5. Honorários sucumbenciais** → em regra, **10% do valor devido à parte autora**, e o valor consta na planilha de cálculo que apurou o valor devido à parte autora. Percentual diferente de 10%, ou valor que não conste na planilha de cálculo → AVISO.
+
+**6. RPV suplementar** (usuário, 19/11/2026; fluxo testado na expedição). É a diferença apurada por planilha da Contadoria posterior ao pagamento da RPV originária, que recalcula o devido e desconta o valor requisitado e atualizado (Res. CJF 983/2026, art. 41). Confere, sem AVISO, a requisição com:
+- **Requisitório:** Suplementar.
+- **Data da Execução:** a data do ofício da RPV originária.
+- **Valor, principal, Selic e data-base:** os do **líquido devido** da planilha da suplementar, com a data-base na data da planilha.
+- **Valor Total da Execução:** o total realizado e atualizado da planilha (art. 8º, XVIII).
+
+Divergência em qualquer desses dados → AVISO.
+
+**Qual planilha vale** (decisão do usuário em 19/11/2026): na suplementar, vale a **planilha mais recente da Contadoria** que recalcula todo o período e desconta o valor requisitado e atualizado. Não é AVISO, e essa planilha prevalece, ainda que:
+- haja planilha anterior só das parcelas novas, com a concordância do INSS;
+- e a planilha mais recente aplique Selic ou omita meses em relação a ela.
+
+Continua AVISO a decisão posterior que homologue a planilha anterior ou mande refazer a mais recente.
 
 ## Conferência 3 — data-base
 
@@ -299,7 +321,7 @@ Registre sempre o **número do documento** em que o cálculo usado foi encontrad
    - a) Ofício de pagamento → a data que consta em "Nesta data foi solicitado pagamento para o profissional", no ofício.
    - b) Documento comprobatório ("CERTIFICO que solicitei, através do sistema AJG, o pagamento da perícia realizada…") → a data que consta na certidão.
    - c) Havendo mais de uma perícia → a data da **última** informação sobre a solicitação de pagamento.
-3. **Multa** → a data da decisão que liquidou a multa. Havendo mais de uma decisão, a data da **última**.
+3. **Multa** → a data da decisão que liquidou a multa. Havendo mais de uma decisão, a data da **última**. A decisão que só rejeita a impugnação e mantém a multa não muda a data-base (usuário, 19/11/2026).
 
 Data divergente → AVISO.
 
