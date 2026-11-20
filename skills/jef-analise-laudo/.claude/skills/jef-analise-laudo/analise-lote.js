@@ -17,7 +17,7 @@
   if (!CR) return 'carregue antes o analise-lote-pje.js (window.__CR)';
   const LM = (window.__LM = window.__LM || { out: {}, dados: {}, mk: {} });
   LM.cfg = LM.cfg || { sm: null, etiquetas: {} };
-  LM.versao = 6; // v2, 30/10/2026: respostas do Setor de Perícias (afastamento, faixas, adicional de 25%, curatela 18+, outros laudos, incapacidade passada)
+  LM.versao = 7; // v2, 30/10/2026: respostas do Setor de Perícias (afastamento, faixas, adicional de 25%, curatela 18+, outros laudos, incapacidade passada)
   // v3, 16/11/2026: proposta de acordo depois do laudo (só informa, com o método da jef-expediente-manifestacao), intimação das
   // partes sobre o laudo (Intimação + Certidão de Intimação com os expedientes do INSS e da parte autora; sem ela, FALHA NA
   // INTIMAÇÃO) e MPF (cadastrado, manifestação nos autos, ou parte autora menor ou incapaz → INTIMAR MPF). Pede o CR v12.
@@ -234,6 +234,10 @@
         outros = outrosMed.filter((x) => ymd(x.data) !== ymd(P.data));
       }
     }
+    // v7 (20/11/2026, Setor de Perícias): "Laudo Pericial" que é comunicação do perito (autor ausente, perito impedido, menor sem
+    // documento com foto) e sem quadro clínico → Redesignar perícia.
+    const COM_RE = /n[ãa]o\s+compareceu|impedid[oa]|impedimento|sem\s+(documento|identidade)[^.]{0,40}foto|remarca[çc]|redesign/i;
+    D.redes = !QUADRO_RE.test(t) && COM_RE.test(tL) ? (tL.match(new RegExp('[^.]{0,100}(?:' + COM_RE.source + ')[^.]{0,140}', 'i')) || [''])[0].slice(0, 260) : '';
     D.outrosMed = outros.map((x) => x.data + ' ' + x.id + ' «' + x.ti.slice(0, 40) + '»');
     const tAll = D.orig ? tL + ' ' + t : t; // exame, incapacidade passada e acidente: os dois laudos
     D.pericia = data(win(t, /data da per[íi]cia|realiza[çc][ãa]o da per[íi]cia|data da realiza[çc][ãa]o/i, 0, 60).replace(/^[^:]*:/, ''));
@@ -325,6 +329,18 @@
     const rv = rW.match(/R\$\s*([\d.]+,\d{2})/);
     D.rpc = rv ? brl(rv[1]) : null;
     D.rpcTxt = rW.slice(0, 260);
+    // v7 (20/11/2026, Setor de Perícias): sem a renda per capita escrita, vale a renda informada no quesito B (sem dividir pelo grupo):
+    // valor em R$, "sem renda" (0), 1 salário mínimo ou "mais de 1 salário mínimo". Sugestão a conferir no texto.
+    D.rendaB = null; D.rendaBTxt = '';
+    if (D.rpc == null) {
+      const mB = t.match(/[^.]{0,80}\brenda\b[^.]{0,120}?R\$\s*([\d.]+,\d{2})[^.]{0,60}/i);
+      const mZ = t.match(/[^.]{0,60}(n[ãa]o\s+(possui|tem|declara|auferi\w*|recebe)\s+(nenhuma\s+)?renda|sem\s+renda|nenhuma\s+renda|n[ãa]o\s+h[áa]\s+renda|n[ãa]o\s+afirma\s+ter\s+renda)[^.]{0,60}/i);
+      const mM = t.match(/[^.]{0,80}\brenda\b[^.]{0,80}?(mais\s+de\s+)?(um|1)\s+sal[áa]rio[s]?[\s-]*m[íi]nimo[^.]{0,60}/i);
+      if (mM && /mais\s+de\s+(um|1)/i.test(mM[0]) && LM.sm) { D.rendaB = LM.sm * 1.01; D.rendaBTxt = mM[0]; }
+      else if (mB) { D.rendaB = brl(mB[1]); D.rendaBTxt = mB[0]; }
+      else if (mM && LM.sm) { D.rendaB = LM.sm; D.rendaBTxt = mM[0]; }
+      else if (mZ) { D.rendaB = 0; D.rendaBTxt = mZ[0]; }
+    }
     // v4: também a certidão da assistente social ("não conseguimos localizar o referido endereço", "foi impossível realizar
     // a diligência"), juntada como "Laudo Pericial (… Certidão Perícia Social)".
     const end = t.match(/[^.]{0,100}(n[ãa]o\s+(foi\s+)?(encontrad|localizad)\S*[^.]{0,40}(endere|resid|im[óo]vel|autor|requerente)|n[ãa]o\s+(conseg\w*\s+)?(encontr|localiz)\w*[^.]{0,40}(endere|resid|im[óo]vel|autor|requerente)|n[ãa]o\s+(encontrei|localizei|consegui localizar)|imposs[íi]vel\s+(realizar\s+a\s+)?(dilig[êe]ncia|visita|per[íi]cia)|per[íi]cia social negativ|mudou-se|(n[ãa]o\s+)?reside\s+mais|n[ãa]o\s+reside\s+no\s+endere|endere[çc]o\s+(diverg|incorret|inexist|n[ãa]o\s+confere))[^.]{0,120}/i);
@@ -342,11 +358,13 @@
     let c;
     if (D.endTxt) c = 'Social - esclarecer localização';
     else if (D.divTxt) c = 'Social - divergência';
-    else if (D.rpc == null) c = 'INDEFINIDO';
+    else if (D.rpc == null && D.rendaB == null) c = 'INDEFINIDO';
     else if (meio == null) c = 'definir o salário mínimo (LM.config)';
-    else c = D.rpc <= meio ? 'Social - renda até 1/2 SM' : 'Social - renda acima de 1/2 SM';
+    else c = (D.rpc != null ? D.rpc : D.rendaB) <= meio ? 'Social - renda até 1/2 SM' : 'Social - renda acima de 1/2 SM';
     D.sug = c; D.etq = ETQ(c);
     D.flags = [];
+    if (D.rpc == null && D.rendaB != null) D.flags.push('RENDA DO QUESITO B (sem renda per capita escrita; não dividir pelo grupo; conferir no laudo e excluir benefício de outro idoso/PcD): R$ ' + D.rendaB.toFixed(2) + ' « ' + D.rendaBTxt.slice(0, 200) + ' »');
+    if (D.pedido !== 'BPC' && D.pedTxt !== undefined && D.tipo === 'social') D.flags.push('LAUDO SOCIAL em pedido previdenciário: se o INSS contesta a renda declarada, Social - renda acima de 1/2 SM (assessoria)');
     if (D.endResp && D.endResp.length) D.flags.push('ENDEREÇO JÁ DETALHADO PELA PARTE DEPOIS DO LAUDO: ' + D.endResp.join('; '));
     if (D.benefTxt) D.flags.push('BENEFÍCIO NO GRUPO? conferir se entrou na renda e excluir BPC/benefício de até 1 SM de outro idoso ou PcD: ' + D.benefTxt);
     if (D.pedido !== 'BPC') D.flags.push('pedido da inicial não identificado como BPC: conferir');
@@ -559,6 +577,7 @@
     'Limitação moderada ou grave': 'etiqueta_limitacao_moderada_grave',
     'Laudo C': 'etiqueta_laudo_c', 'Laudo D': 'etiqueta_laudo_d',
     'Incapacidade - CEJUSC': 'etiqueta_incapacidade_cejusc',
+    'Redesignar perícia': 'etiqueta_redesignar_pericia',
     'Complementação de laudo': 'etiqueta_complementacao_laudo', 'Exame complementar': 'etiqueta_exame_complementar',
     'Adicional de 25% - assistência permanente': 'etiqueta_adicional_25',
     AVISO: 'etiqueta_aviso_indefinido', INDEFINIDO: 'etiqueta_aviso_indefinido',
@@ -572,6 +591,7 @@
     if (D.social) f.push('LAUDO SOCIAL depois do laudo médico (' + D.social + '): fora do escopo se o laudo médico já foi tratado');
     if (/DIFERENTE|conferir/.test(D.pessoa)) f.push('PESSOA: ' + D.pessoa);
     if (D.acid.length) f.push('ACIDENTE DO TRABALHO/TRAJETO: ' + D.acid.join(' | '));
+    if (D.redes) f.push('COMUNICAÇÃO DO PERITO (perícia não realizada)? ' + D.redes);
     if (D.exame) f.push('EXAME? ' + D.exame);
     if (D.inloco.length) f.push('IN LOCO? ' + D.inloco.join('; '));
     if (D.pedido === '?') f.push('pedido não identificado na inicial');
@@ -591,6 +611,7 @@
     // v5: previdenciário com incapacidade → CEJUSC; prioridade só nas exceções.
     const prev = () => (D.segEsp || D.inssReq ? 'Prioridade (AD/AI/LOAS)' : 'Incapacidade - CEJUSC');
     if (D.social) c = 'FORA (laudo social)';
+    else if (D.redes) c = 'Redesignar perícia';
     else if (/DIFERENTE/.test(D.pessoa)) c = 'Complementação de laudo';
     else if (id != null && id <= 15 && !D.menorResp) c = 'Complementação de laudo';
     else if (id != null && (id === 16 || id === 17) && D.menorResp) c = 'Complementação de laudo';

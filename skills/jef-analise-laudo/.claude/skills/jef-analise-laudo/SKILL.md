@@ -74,9 +74,11 @@ Nesta skill é usado o `codigo_orgao` (consulta processual) e o `tribunal` (que 
 | `etiqueta_social_renda_acima_meio_sm` | Etiqueta para laudo social com renda per capita acima de 1/2 salário mínimo. | `ASSESSORIA - Laudo social` |
 | `etiqueta_complementacao_laudo` | Etiqueta para pedir ao perito a complementação do laudo (laudo de outra pessoa; quesitos de menor de 16 anos). | `PERÍCIA - Complementar laudo` |
 | `etiqueta_exame_complementar` | Etiqueta para o caso em que o perito pede exames complementares para concluir. | `PERÍCIA - Exames pedidos pelo perito` |
+| `etiqueta_redesignar_pericia` | Etiqueta para o processo cuja perícia não se realizou (comunicação do perito: ausência da parte, perito impedido, menor sem documento com foto) e precisa de nova designação. | `PERÍCIA - Redesignar` |
 | `etiqueta_aviso_indefinido` | Etiqueta para os casos que vão à análise humana da direção (AVISO e INDEFINIDO). | `DIREÇÃO - Analisar` |
 | `etiqueta_curador` | Etiqueta para a providência de curatela (regularizar a representação por curador). | `REPRESENTAÇÃO - Curador` |
 | `fase_complementacao_laudo` | Tarefa/fase do PJe para onde movimentar o processo que aguarda a complementação do laudo pelo perito. | `[JEF] Perícia - Aguardar perito` |
+| `fase_redesignar_pericia` | Tarefa/fase do PJe para onde movimentar o processo cuja perícia precisa ser redesignada (se a unidade usa a própria etiqueta como fase, repita o valor). | `PERÍCIA - Redesignar` |
 | `fase_exame_complementar` | Tarefa/fase do PJe para onde movimentar o processo que aguarda a parte autora providenciar os exames. | `[JEF] Prazo - Aguardando` |
 | `modelo_minuta_curador` | Nome do modelo de minuta da intimação da parte autora para regularizar a representação (curador). | `Intimação - regularizar curatela` |
 
@@ -90,7 +92,7 @@ LM.config({ sm: <salário mínimo>, etiquetas: {
   etiqueta_laudo_c: '<valor>', etiqueta_laudo_d: '<valor>', etiqueta_adicional_25: '<valor>', etiqueta_incapacidade_cejusc: '<valor>',
   etiqueta_social_esclarecer_localizacao: '<valor>', etiqueta_social_divergencia: '<valor>',
   etiqueta_social_renda_ate_meio_sm: '<valor>', etiqueta_social_renda_acima_meio_sm: '<valor>',
-  etiqueta_complementacao_laudo: '<valor>', etiqueta_exame_complementar: '<valor>', etiqueta_aviso_indefinido: '<valor>' } })
+  etiqueta_complementacao_laudo: '<valor>', etiqueta_exame_complementar: '<valor>', etiqueta_redesignar_pericia: '<valor>', etiqueta_aviso_indefinido: '<valor>' } })
 ```
 
 O retorno diz quantas das 14 etiquetas foram configuradas; a configuração fica em `LM.cfg`. Enquanto faltar alguma, `LM.fila` não roda e devolve "configure ... antes de iniciar", com as chaves que faltam. A etiqueta de curador, as fases e o modelo de minuta não passam pelo script: a skill os lê do arquivo ao preencher a planilha. O `gera-relatorio.ps1` não usa dado da unidade (monta o .xlsx só a partir do andamento).
@@ -202,6 +204,8 @@ Testado em 23/10/2026 nos 30 processos do terceiro teste (CSV da tarefa de anál
 
 **v6 (18/11/2026, regra das partes já ouvidas):** com as duas partes ouvidas, a coluna MPF em branco e uma classificação que tem rotina na triagem de expediente, o resumo traz `EXPEDIENTE: rotina <código>`; com MPF, `EXPEDIENTE: não (INTIMAR MPF)`. `LM.paraExp(nums)` devolve a lista `processo|rotina` desses processos, que vai para o script da triagem de expediente, `.claude/skills/jef-expediente-manifestacao/analise-lote.js` (`window.__EM`), carregado na mesma página pelo mesmo método, com a configuração que aquela skill manda passar: `EM.inicia(lista, 0)`, `EM.estado()` e `EM.mostra(a, b)`. Ele reabre cada um desses processos (mais um acesso ao PJe por processo; atenção ao bloqueio de 10 minutos) e lê o que a rotina pede. A `PROP` do resumo dele é sugestão; a classificação sai das regras da rotina, conferidas no texto, e as fotos se veem na tela. Proposta de acordo: vale a linha `PROPOSTA` desta skill; havendo divergência com a do expediente, confira no texto. O MARCAR TODOS COMO LIDOS continua pelo `LM.marcaFila`, nunca pelo `EM.marca`. Testado só em leitura em 45 processos de um lote real da 7ª Vara: 36 foram para as regras do expediente e 5 ficaram com a etiqueta do laudo por causa do MPF.
 
+**v7 (20/11/2026), respostas do Setor de Perícias:** o `analise-lote.js` sugere `Redesignar perícia?` quando o "Laudo Pericial" sem quadro clínico é comunicação do perito (linha `COMUNICAÇÃO DO PERITO`, etiqueta da chave `etiqueta_redesignar_pericia`); no laudo social sem a renda per capita escrita, compara com metade do salário mínimo a renda achada em R$, "sem renda", 1 salário mínimo ou mais (linha `RENDA DO QUESITO B`, a conferir no laudo); o quesito 4.7 do INSS nunca é indício de acidente do trabalho. Só sintaxe checada; confira cada sugestão no texto no primeiro lote.
+
 ## Checagens preliminares — bloqueiam a classificação se divergirem
 
 Antes de classificar o laudo, faça as três checagens abaixo, em todo processo. Encontrando divergência relevante em qualquer uma delas, **não classifique o laudo**.
@@ -212,6 +216,7 @@ Antes de classificar o laudo, faça as três checagens abaixo, em todo processo.
 Divergência que os próprios autos expliquem (grafia diferente do mesmo nome, nome social, retificação de registro) **não bloqueia** — registre a explicação no Fundamento e prossiga com a classificação normal. Nome com grafia um pouco diferente e o mesmo CPF no laudo e no PJe é a mesma pessoa (decisão da 7ª Vara, 23/10/2026; ex.: "FULANO DE SOUZA" e "FULANO DE SOUSA").
 
 3. **Acidente do trabalho ou de trajeto** (decisão da 7ª Vara, 23/10/2026) — se o laudo indicar que a incapacidade, a limitação ou a sequela decorre de acidente do trabalho ou de acidente de trajeto (no quesito 6.8, no 9.1, na anamnese ou em outra parte do laudo), ainda que outro quesito diga o contrário → classificação **AVISO**, etiqueta configurada em `jef-analise-laudo.etiqueta_aviso_indefinido`, para decisão sobre a competência. Preencha grau, subgrau e duração do laudo e registre no Fundamento onde está a indicação do acidente.
+   - **Quesitos do INSS não contam** (resposta do Setor de Perícias): ignore as respostas aos quesitos do INSS (item 4 do modelo, 4.6 e 4.7). A marca "(x)" no 4.7 ("acidente de trabalho, doença profissional ou equiparados") aparece nos mesmos termos em todos os laudos desse modelo e **não indica acidente do trabalho** quando o quesito do juízo (6.8) responde "Não": nesse caso a checagem não gera AVISO, e o laudo é classificado normalmente. Só valem a resposta SIM do quesito do juízo e a indicação de acidente na anamnese ou no texto do perito.
 
 ~~**Processo na fila só por causa do laudo social** (decisão da 7ª Vara, 23/10/2026): o processo não entra no relatório e é listado à parte.~~ Substituído em 30/10/2026: o laudo social passa a ser analisado por esta skill (ver "Laudo social — BPC ao deficiente e ao idoso").
 
@@ -232,7 +237,13 @@ Classifique nesta ordem; a primeira que se aplicar define a linha:
 **De onde sai a renda per capita** (decisão da 7ª Vara, 30/10/2026):
 - vale a renda per capita **informada no laudo** pela assistente social;
 - se o laudo mostrar que ela incluiu na renda do grupo o **BPC ou outro benefício de até um salário mínimo recebido por outro idoso ou pessoa com deficiência do grupo familiar** (art. 20, § 14, da Lei 8.742/1993), esse valor é **excluído** e a renda per capita é recalculada com os próprios dados do laudo (renda do grupo menos o benefício excluído, dividida pelo número de membros informado no laudo). Registre o cálculo no Fundamento;
-- laudo sem a renda per capita → **INDEFINIDO**, com a etiqueta configurada em `jef-analise-laudo.etiqueta_aviso_indefinido`. A skill não calcula a renda a partir de outros documentos.
+- laudo sem a renda per capita escrita (resposta do Setor de Perícias): vale a **renda informada no quesito B** do laudo social (a renda do grupo ou da parte autora que a assistente social registra), **sem dividir pelo grupo**, comparada com metade do salário mínimo. Registre no Fundamento o valor e o trecho:
+  - renda igual ou inferior a metade do salário mínimo → "Social - renda até 1/2 SM"; a parte autora que **afirma não ter renda** → também "Social - renda até 1/2 SM";
+  - renda de **1 salário mínimo** (ex.: a parte autora já recebe BPC) ou **mais de um salário mínimo** → "Social - renda acima de 1/2 SM";
+  - o laudo diz só que a renda per capita é "superior a 1/4 do SM" e menciona benefício de outro integrante a excluir → aplique a exclusão acima e classifique pelo resultado; sem o valor, "Social - renda até 1/2 SM";
+  - **INDEFINIDO**, com a etiqueta configurada em `jef-analise-laudo.etiqueta_aviso_indefinido`, só quando o laudo não traz renda alguma (nem a declaração de ausência de renda).
+  A skill continua sem calcular a renda a partir de outros documentos do processo.
+- **Laudo social em processo de assunto previdenciário, sem laudo médico:** vale a mesma análise da renda; se o INSS, na manifestação, contesta a renda declarada pela parte autora (de modo que não é provável acordo em audiência), a classificação é "Social - renda acima de 1/2 SM", ainda que a renda declarada esteja até metade do salário mínimo.
 
 **Na planilha:** Grau, Subgrau e Duração ficam em branco. O Fundamento traz a data e o ID do laudo social, a renda per capita (e o recálculo, se houver), o salário mínimo e a metade usados, a composição do grupo familiar e o trecho que motivou a classificação de endereço ou divergência. A curatela não se aplica.
 
@@ -255,6 +266,11 @@ Regras da 7ª Vara de 23/10/2026. Em cada caso abaixo o laudo **não é classifi
 4. **Perícia in loco** — o advogado pediu perícia no local em que a parte autora se encontra, por estar doente, presa ou internada em hospital ou clínica de reabilitação, e o pedido está pendente (não há laudo posterior a ele) → classificação **"Perícia in loco"**:
    - providência: termo ordinatório de perícia in loco; a servidora entra em contato com o perito para informá-lo do fato e saber se ele pode comparecer ao local em que a parte autora se encontra;
    - sem fase nem etiqueta próprias (colunas em branco).
+5. **Perícia não realizada — comunicação do perito** (resposta do Setor de Perícias) — o documento juntado como "Laudo Pericial" é, na verdade, a **comunicação do perito** de que a perícia não se realizou, e não há laudo posterior: autor que não compareceu e perito impedido (por relação de grau, parentesco etc.), ou menor que compareceu sem documento oficial com foto, com pedido de remarcação → classificação **"Redesignar perícia"** (grau, subgrau e duração em branco):
+   - providência: designar nova perícia; se o perito se declarou impedido, com **outro perito**;
+   - movimentar para a fase configurada em `jef-analise-laudo.fase_redesignar_pericia`;
+   - etiqueta configurada em `jef-analise-laudo.etiqueta_redesignar_pericia`.
+   Confira no texto da comunicação o motivo e registre-o no Fundamento. Outro "Laudo Pericial" do mesmo dia, que é só a petição a que a comunicação se refere, não é laudo.
 
 Nenhuma dessas situações → classifique o laudo normalmente (seção seguinte).
 
@@ -442,7 +458,7 @@ Um único arquivo .xlsx, fonte Arial, uma aba `Triagem`. Uma linha por processo,
 - **Grau do laudo**: `A`, `B`, `C` ou `D`, conforme o quesito do quadro clínico. Em branco nos casos AVISO/INDEFINIDO em que o laudo não pôde ser lido e nas providências que substituem a classificação.
 - **Subgrau**: `leve`, `moderada` ou `acentuada`, preenchido só quando o grau for C; em branco nos demais.
 - **Duração ≥ 2 anos ou definitiva**: `sim`/`não`/`(não se aplica)` — só se aplica aos graus A e B.
-- **Classificação**: uma de `LOAS - Designar social`, `Prioridade (AD/AI/LOAS)`, `Incapacidade - CEJUSC`, `Limitação moderada ou grave`, `Laudo C`, `Laudo D`, `Adicional de 25% - assistência permanente`, `Social - esclarecer localização`, `Social - divergência`, `Social - renda até 1/2 SM`, `Social - renda acima de 1/2 SM`, `Complementação de laudo`, `Exame complementar`, `Perícia in loco`, `AVISO` ou `INDEFINIDO`; com as partes já ouvidas e sem MPF, `<classificação do laudo> → <classificação da rotina da triagem de expediente>` (ver a seção própria).
+- **Classificação**: uma de `LOAS - Designar social`, `Prioridade (AD/AI/LOAS)`, `Incapacidade - CEJUSC`, `Limitação moderada ou grave`, `Laudo C`, `Laudo D`, `Adicional de 25% - assistência permanente`, `Social - esclarecer localização`, `Social - divergência`, `Social - renda até 1/2 SM`, `Social - renda acima de 1/2 SM`, `Complementação de laudo`, `Exame complementar`, `Perícia in loco`, `Redesignar perícia`, `AVISO` ou `INDEFINIDO`; com as partes já ouvidas e sem MPF, `<classificação do laudo> → <classificação da rotina da triagem de expediente>` (ver a seção própria).
 - **Etiqueta prescrita**: o nome exato da etiqueta correspondente, copiado da seção `## jef-analise-laudo` de `docs/configuracao-unidade.md`:
 
   | Classificação | Chave da etiqueta |
@@ -460,6 +476,7 @@ Um único arquivo .xlsx, fonte Arial, uma aba `Triagem`. Uma linha por processo,
   | `Social - renda acima de 1/2 SM` | `etiqueta_social_renda_acima_meio_sm` |
   | `Complementação de laudo` | `etiqueta_complementacao_laudo` |
   | `Exame complementar` | `etiqueta_exame_complementar` |
+  | `Redesignar perícia` | `etiqueta_redesignar_pericia` |
   | `Perícia in loco` | (em branco) |
   | `AVISO` e `INDEFINIDO` | `etiqueta_aviso_indefinido` |
   | partes já ouvidas, sem MPF (`… → …`) | a etiqueta secretaria da rotina, da configuração da `jef-expediente-manifestacao` |
@@ -481,6 +498,6 @@ Nome do arquivo: `Analise_Laudo_AAAA-MM-DD.xlsx`. Se o usuário tiver pasta cone
 
 ## Ao terminar
 
-Relate primeiro o diagnóstico, depois os dados de apoio: quantos processos foram analisados no total, a divisão por classificação (`LOAS - Designar social`, `Prioridade`, `Limitação moderada ou grave`, `Incapacidade - CEJUSC`, `Laudo C`, `Laudo D`, `Adicional de 25% - assistência permanente`, os quatro resultados do laudo social, `Complementação de laudo`, `Exame complementar`, `Perícia in loco`, `AVISO`), quantos foram para as etiquetas da triagem de expediente por terem as partes já ouvidas (por rotina e resultado) e quantos ficaram com a etiqueta do laudo por causa do MPF, quantos exigiram a providência de curatela (destacando cada um, com a hipótese, o prazo e o modelo de minuta quando houver, e lembrando, na hipótese 1, a necessidade do fluxo de pagamento da perícia), quantos tiveram MARCAR TODOS COMO LIDOS confirmado, e a relação dos AVISOS/INDEFINIDOS com o motivo de cada um. Informe também quantos processos têm proposta de acordo (e quantas aceitas, recusadas ou com contraproposta), quantos têm `FALHA NA INTIMAÇÃO` e quantos têm `INTIMAR MPF`, listando os números. Se algum processo do CSV tiver assunto diferente do escopo desta rotina, informe quantos foram excluídos por esse motivo. Informe o salário mínimo e a fonte usados no critério de renda do laudo social.
+Relate primeiro o diagnóstico, depois os dados de apoio: quantos processos foram analisados no total, a divisão por classificação (`LOAS - Designar social`, `Prioridade`, `Limitação moderada ou grave`, `Incapacidade - CEJUSC`, `Laudo C`, `Laudo D`, `Adicional de 25% - assistência permanente`, os quatro resultados do laudo social, `Complementação de laudo`, `Exame complementar`, `Perícia in loco`, `Redesignar perícia`, `AVISO`), quantos foram para as etiquetas da triagem de expediente por terem as partes já ouvidas (por rotina e resultado) e quantos ficaram com a etiqueta do laudo por causa do MPF, quantos exigiram a providência de curatela (destacando cada um, com a hipótese, o prazo e o modelo de minuta quando houver, e lembrando, na hipótese 1, a necessidade do fluxo de pagamento da perícia), quantos tiveram MARCAR TODOS COMO LIDOS confirmado, e a relação dos AVISOS/INDEFINIDOS com o motivo de cada um. Informe também quantos processos têm proposta de acordo (e quantas aceitas, recusadas ou com contraproposta), quantos têm `FALHA NA INTIMAÇÃO` e quantos têm `INTIMAR MPF`, listando os números. Se algum processo do CSV tiver assunto diferente do escopo desta rotina, informe quantos foram excluídos por esse motivo. Informe o salário mínimo e a fonte usados no critério de renda do laudo social.
 
 Se algum processo não for encontrado na consulta ou os autos não abrirem, diga quais e por quê. Nunca relate como analisado um processo que você não conseguiu abrir.
