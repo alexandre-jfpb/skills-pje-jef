@@ -234,10 +234,6 @@
         outros = outrosMed.filter((x) => ymd(x.data) !== ymd(P.data));
       }
     }
-    // v7 (20/11/2026, Setor de Perícias): "Laudo Pericial" que é comunicação do perito (autor ausente, perito impedido, menor sem
-    // documento com foto) e sem quadro clínico → Redesignar perícia.
-    const COM_RE = /n[ãa]o\s+compareceu|impedid[oa]|impedimento|sem\s+(documento|identidade)[^.]{0,40}foto|remarca[çc]|redesign/i;
-    D.redes = !QUADRO_RE.test(t) && COM_RE.test(tL) ? (tL.match(new RegExp('[^.]{0,100}(?:' + COM_RE.source + ')[^.]{0,140}', 'i')) || [''])[0].slice(0, 260) : '';
     D.outrosMed = outros.map((x) => x.data + ' ' + x.id + ' «' + x.ti.slice(0, 40) + '»');
     const tAll = D.orig ? tL + ' ' + t : t; // exame, incapacidade passada e acidente: os dois laudos
     D.pericia = data(win(t, /data da per[íi]cia|realiza[çc][ãa]o da per[íi]cia|data da realiza[çc][ãa]o/i, 0, 60).replace(/^[^:]*:/, ''));
@@ -253,6 +249,11 @@
       const pm = prazoMeses(D.prazo);
       if (base && pm != null) { D.fim = new Date(base.getTime() + pm * 30.4375 * 864e5); D.intervalo = meses(D.dii, D.fim); D.baseFim = base === D.pericia ? 'perícia' : 'DII'; }
     }
+    // v7 (20/11/2026, Setor de Perícias; v7.1 em 24/11/2026): "Laudo Pericial" que é comunicação do perito (perito impedido, autor
+    // ausente, menor sem documento com foto) e sem quadro clínico nem quesitos de menor → Redesignar perícia. A v7 pegava "impedimento
+    // de longo prazo" (BPC) e "assistente técnico não compareceu": agora só as frases da comunicação, e nunca com o 5.2 respondido.
+    const COM_RE = /apresento\s+impedimento|declar\w+\s+(-?se\s+)?impedid|impedid[oa]\s+(de|para)\s+(atuar|realizar|periciar)|(autor|autora|parte autora|periciad[oa])[^.]{0,40}n[ãa]o\s+compareceu|sem\s+(documento|identidade)[^.]{0,40}foto|(pede|solicita)\w*\s+(a\s+)?remarca/i;
+    D.redes = !QUADRO_RE.test(t) && !mn.g && COM_RE.test(tL) ? (tL.match(new RegExp('[^.]{0,100}(?:' + COM_RE.source + ')[^.]{0,140}', 'i')) || [''])[0].slice(0, 260) : '';
     D.q71 = (() => { const w = win(t, /assist[êe]ncia permanente de outra pessoa para as atividades da vida di[áa]ria/i, 0, 140); return w ? resposta(w.replace(/^[^?]*\?|^.{0,95}di[áa]ria/i, '')) : '—'; })();
     D.cidF = /CID[\s\S]{0,20}?\bF\s?\d{2}|\bF\s?\d{2}\.\d/.test(t);
     // Acidente do trabalho ou de trajeto: resposta ao 6.8 (ou 5.8 do modelo com quesitos de adulto no item 5) ou menção no texto.

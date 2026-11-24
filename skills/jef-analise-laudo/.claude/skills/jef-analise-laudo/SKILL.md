@@ -206,6 +206,8 @@ Testado em 23/10/2026 nos 30 processos do terceiro teste (CSV da tarefa de anál
 
 **v7 (20/11/2026), respostas do Setor de Perícias:** o `analise-lote.js` sugere `Redesignar perícia?` quando o "Laudo Pericial" sem quadro clínico é comunicação do perito (linha `COMUNICAÇÃO DO PERITO`, etiqueta da chave `etiqueta_redesignar_pericia`); no laudo social sem a renda per capita escrita, compara com metade do salário mínimo a renda achada em R$, "sem renda", 1 salário mínimo ou mais (linha `RENDA DO QUESITO B`, a conferir no laudo); o quesito 4.7 do INSS nunca é indício de acidente do trabalho. Só sintaxe checada; confira cada sugestão no texto no primeiro lote.
 
+**v7.1 (24/11/2026):** a detecção de `Redesignar perícia?` só vale com frases da comunicação do perito (perito impedido, "já foi meu paciente", autor que não compareceu, menor sem documento com foto, pedido de remarcação) e nunca com o quesito 5.2 respondido. A v7 marcava laudos de menores no BPC por causa de "impedimento de longo prazo" e "assistente técnico: não compareceu".
+
 ## Checagens preliminares — bloqueiam a classificação se divergirem
 
 Antes de classificar o laudo, faça as três checagens abaixo, em todo processo. Encontrando divergência relevante em qualquer uma delas, **não classifique o laudo**.
