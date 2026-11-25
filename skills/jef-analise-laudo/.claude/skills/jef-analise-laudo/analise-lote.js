@@ -252,8 +252,9 @@
     // v7 (20/11/2026, Setor de Perícias; v7.1 em 24/11/2026): "Laudo Pericial" que é comunicação do perito (perito impedido, autor
     // ausente, menor sem documento com foto) e sem quadro clínico nem quesitos de menor → Redesignar perícia. A v7 pegava "impedimento
     // de longo prazo" (BPC) e "assistente técnico não compareceu": agora só as frases da comunicação, e nunca com o 5.2 respondido.
-    const COM_RE = /apresento\s+impedimento|declar\w+\s+(-?se\s+)?impedid|impedid[oa]\s+(de|para)\s+(atuar|realizar|periciar)|(autor|autora|parte autora|periciad[oa])[^.]{0,40}n[ãa]o\s+compareceu|sem\s+(documento|identidade)[^.]{0,40}foto|(pede|solicita)\w*\s+(a\s+)?remarca/i;
-    D.redes = !QUADRO_RE.test(t) && !mn.g && COM_RE.test(tL) ? (tL.match(new RegExp('[^.]{0,100}(?:' + COM_RE.source + ')[^.]{0,140}', 'i')) || [''])[0].slice(0, 260) : '';
+    const COM_RE = /apresento\s+impedimento|declar\w+\s+(-?se\s+)?impedid|impedid[oa]\s+(de|para)\s+(atuar|realizar|periciar)|(autor|autora|parte autora|periciad[oa])[^.]{0,40}n[ãa]o\s+compareceu|sem\s+(documento|identidade)[^.]{0,40}foto|n[ãa]o\s+apresentou\s+documento[^.]{0,80}foto|j[áa]\s+foi\s+meu\s+paciente|(pede|solicita)\w*\s+(a\s+)?remarca/i;
+    const tLc = tL.replace(/assistente\s+t[ée]cnic[oa][^.\n]{0,60}n[ãa]o\s+compareceu/ig, ''); // v8.2
+    D.redes = !QUADRO_RE.test(t) && !mn.g && COM_RE.test(tLc) ? (tLc.match(new RegExp('[^.]{0,100}(?:' + COM_RE.source + ')[^.]{0,140}', 'i')) || [''])[0].slice(0, 260) : '';
     D.q71 = (() => { const w = win(t, /assist[êe]ncia permanente de outra pessoa para as atividades da vida di[áa]ria/i, 0, 140); return w ? resposta(w.replace(/^[^?]*\?|^.{0,95}di[áa]ria/i, '')) : '—'; })();
     D.cidF = /CID[\s\S]{0,20}?\bF\s?\d{2}|\bF\s?\d{2}\.\d/.test(t);
     // Acidente do trabalho ou de trajeto: resposta ao 6.8 (ou 5.8 do modelo com quesitos de adulto no item 5) ou menção no texto.
@@ -326,7 +327,7 @@
   function social(D, S, ds) {
     const t = norm(CR.mem.txt[S.id]);
     D.tipo = 'social'; D.laudo = S;
-    const rW = win(t, /renda\s*(mensal\s*)?(familiar\s*)?per\s*capita/i, 0, 260);
+    const rW = win(t, /renda\s*(mensal\s*)?(familiar\s*)?per\s*cap\w*/i, 0, 260);
     const rv = rW.match(/R\$\s*([\d.]+,\d{2})/);
     D.rpc = rv ? brl(rv[1]) : null;
     D.rpcTxt = rW.slice(0, 260);
@@ -334,7 +335,7 @@
     // valor em R$, "sem renda" (0), 1 salário mínimo ou "mais de 1 salário mínimo". Sugestão a conferir no texto.
     D.rendaB = null; D.rendaBTxt = '';
     if (D.rpc == null) {
-      const mB = t.match(/[^.]{0,80}\brenda\b[^.]{0,120}?R\$\s*([\d.]+,\d{2})[^.]{0,60}/i);
+      const mB = t.match(/[^.]{0,80}\b(?:renda|recebe\s+o\s+valor)\b[^.]{0,120}?R\$\s*([\d.]+,\d{2})[^.]{0,60}/i);
       const mZ = t.match(/[^.]{0,60}(n[ãa]o\s+(possui|tem|declara|auferi\w*|recebe)\s+(nenhuma\s+)?renda|sem\s+renda|nenhuma\s+renda|n[ãa]o\s+h[áa]\s+renda|n[ãa]o\s+afirma\s+ter\s+renda)[^.]{0,60}/i);
       const mM = t.match(/[^.]{0,80}\brenda\b[^.]{0,80}?(mais\s+de\s+)?(um|1)\s+sal[áa]rio[s]?[\s-]*m[íi]nimo[^.]{0,60}/i);
       if (mM && /mais\s+de\s+(um|1)/i.test(mM[0]) && LM.sm) { D.rendaB = LM.sm * 1.01; D.rendaBTxt = mM[0]; }
@@ -344,7 +345,7 @@
     }
     // v4: também a certidão da assistente social ("não conseguimos localizar o referido endereço", "foi impossível realizar
     // a diligência"), juntada como "Laudo Pericial (… Certidão Perícia Social)".
-    const end = t.match(/[^.]{0,100}(n[ãa]o\s+(foi\s+)?(encontrad|localizad)\S*[^.]{0,40}(endere|resid|im[óo]vel|autor|requerente)|n[ãa]o\s+(conseg\w*\s+)?(encontr|localiz)\w*[^.]{0,40}(endere|resid|im[óo]vel|autor|requerente)|n[ãa]o\s+(encontrei|localizei|consegui localizar)|imposs[íi]vel\s+(realizar\s+a\s+)?(dilig[êe]ncia|visita|per[íi]cia)|per[íi]cia social negativ|mudou-se|(n[ãa]o\s+)?reside\s+mais|n[ãa]o\s+reside\s+no\s+endere|endere[çc]o\s+(diverg|incorret|inexist|n[ãa]o\s+confere))[^.]{0,120}/i);
+    const end = t.match(/[^.]{0,100}(n[ãa]o\s+(foi\s+)?(encontrad|localizad)\S*[^.]{0,40}(endere|resid|im[óo]vel|autor|requerente)|n[ãa]o\s+(conseg\w*\s+)?(encontr|localiz)\w*(?!\s+vizinh)[^.]{0,40}(endere|resid|im[óo]vel|autor|requerente)|n[ãa]o\s+(encontrei|localizei|consegui localizar)|imposs[íi]vel\s+(realizar\s+a\s+)?(dilig[êe]ncia|visita|per[íi]cia)|per[íi]cia social negativ|mudou-se|(n[ãa]o\s+)?reside\s+mais|n[ãa]o\s+reside\s+no\s+endere|endere[çc]o\s+(diverg|incorret|inexist|n[ãa]o\s+confere))[^.]{0,120}/i);
     D.endTxt = end ? end[0].slice(0, 260) : '';
     // v4: endereço já detalhado pela parte autora depois do laudo ou da certidão (só informa).
     D.endResp = D.endTxt ? ds.filter((x) => +x.id > +S.id && !/^Laudo/i.test(x.ti) && /ponto[s]?\s+de\s+refer[êe]ncia|endere[çc]o\s+(atualizado|correto|completo)|detalhar\s+(o\s+|seu\s+)?endere|telefone\s+(para\s+)?contato|contato\s*:\s*\(?\d{2}/i.test(CR.mem.txt[x.id] || ''))

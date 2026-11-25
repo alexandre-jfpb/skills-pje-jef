@@ -212,6 +212,12 @@ Testado em 23/10/2026 nos 30 processos do terceiro teste (CSV da tarefa de anál
 
 **v8.1 (25/11/2026):** "acidente de trajeto, p. ex." é o texto-padrão dos quesitos (4.7 e 7.7 do INSS e 2.7 do laudo) e deixa de gerar o alerta de acidente do trabalho; sem isso, laudos comuns saíam AVISO.
 
+**v8.2 (25/11/2026):** corrige erros de sugestão achados na conferência de um lote. As regras de classificação não mudaram.
+- **Redesignar perícia:** o "Assistente técnico da parte autora: Não compareceu" deixa de contar como ausência do autor; passam a ser reconhecidas a comunicação do perito "não apresentou documento oficial de identificação com fotografia" e "já foi meu paciente".
+- **Laudo social, renda:** lê a renda per capita escrita "per capta" e, sem ela, o quesito B com "recebe o valor de R$ …".
+- **Laudo social, endereço:** "não localizei vizinhos …" deixa de ser lido como endereço não localizado.
+
+
 ## Checagens preliminares — bloqueiam a classificação se divergirem
 
 Antes de classificar o laudo, faça as três checagens abaixo, em todo processo. Encontrando divergência relevante em qualquer uma delas, **não classifique o laudo**.
