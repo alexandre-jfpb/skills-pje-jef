@@ -261,7 +261,7 @@
     D.acid = [];
     if (aW && resposta(aW) === 'SIM') D.acid.push('quesito de acidente do trabalho = SIM');
     // "(acidente típico, acidente de trajeto, etc)" é texto do quesito, não resposta.
-    const tr = tAll.match(/acidente\s+(no|de)\s+traje\s?to(?!,?\s*etc)[^.;]{0,80}/i);
+    const tr = tAll.match(/acidente\s+(no|de)\s+traje\s?to(?!,?\s*(?:etc|p\.?\s*ex))[^.;]{0,80}/i);
     if (tr) D.acid.push('"' + tr[0].slice(0, 90) + '"');
     const at = tAll.match(/(sofreu|v[íi]tima de)\s+acidente\s+(t[íi]pico\s+)?d[eo]\s+trabalho[^.;]{0,60}/i);
     if (at) D.acid.push('"' + at[0].slice(0, 90) + '"');

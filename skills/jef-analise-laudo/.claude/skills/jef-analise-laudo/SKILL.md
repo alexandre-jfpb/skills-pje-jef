@@ -210,6 +210,8 @@ Testado em 23/10/2026 nos 30 processos do terceiro teste (CSV da tarefa de anál
 
 **v8 (25/11/2026):** o aceite da proposta não é mais lido na "concordância com o laudo", na "conclusão pericial" nem em "nos termos que se seguem"; a petição que impugna os termos da oferta ou chama a proposta de injusta ou desproporcional é recusa. Confira sempre o texto da petição que o script marcou como `ACEITA`.
 
+**v8.1 (25/11/2026):** "acidente de trajeto, p. ex." é o texto-padrão dos quesitos (4.7 e 7.7 do INSS e 2.7 do laudo) e deixa de gerar o alerta de acidente do trabalho; sem isso, laudos comuns saíam AVISO.
+
 ## Checagens preliminares — bloqueiam a classificação se divergirem
 
 Antes de classificar o laudo, faça as três checagens abaixo, em todo processo. Encontrando divergência relevante em qualquer uma delas, **não classifique o laudo**.
