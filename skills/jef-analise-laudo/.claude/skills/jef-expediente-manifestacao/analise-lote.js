@@ -265,8 +265,14 @@
       // v3: também com a palavra partida pelo pdf.js ("a ceitar o acordo"): a mesma busca no texto sem espaços
       // (correção da jef-analise-laudo v4, 17/11/2026).
       const tc = t.replace(/\s+/g, '').toLowerCase().replace(/deacordocom/g, '');
-      const aceita = /(aceit|concord|anu[êe])\w*.{0,120}(proposta|acordo|termos)|(proposta|acordo).{0,150}(aceit|concord|anu[êe]ncia)/i.test(t) || /(aceit|concord|anu[êe])\w{0,8}.{0,90}(proposta|acordo|termos)/.test(tc);
-      const naoAceita = /n[ãa]o (aceit|concord)\w*.{0,60}(proposta|acordo)|recus\w*.{0,60}(proposta|acordo)/i.test(t) || /n[ãa]o(aceit|concord)\w{0,8}.{0,50}(proposta|acordo)|recus\w{0,8}.{0,50}(proposta|acordo)/.test(tc);
+      // v8 (25/11/2026): "concordância com o laudo/a conclusão pericial" e "nos termos que se seguem" NÃO são aceite da proposta; a
+      // petição que impugna os termos da oferta é recusa. (0038305-07: "concordância com o laudo ... nos termos que se seguem" saía como
+      // aceite; 0030663-80: "concordando com a conclusão ... e impugnando os termos da oferta" também.)
+      const sl = t.replace(/(aceit|concord)\w*\s+(integral\w*\s+|total\w*\s+|plena\w*\s+)?(com|d[oa]s?|a[os]?)\s+(o\s+|os\s+|a\s+|as\s+)?(laudo|conclus\w*|per[íi]cia|estudo|parecer)(?:\s+(?!(?:e|aceit\w*|concord\w*)\b)[^\s.;,]+){0,4}/gi, ' ').replace(/nos termos (que se seguem|seguintes|abaixo)/gi, ' ');
+      const tcs = sl.replace(/\s+/g, '').toLowerCase().replace(/deacordocom/g, '');
+      const aceita = /(aceit|concord|anu[êe])\w*.{0,120}(proposta|acordo|termos (propost|ofert|d[oa] (acordo|proposta)))|(proposta|acordo).{0,150}(aceit|concord|anu[êe]ncia)/i.test(sl) || /(aceit|concord|anu[êe])\w{0,8}.{0,90}(proposta|acordo)/.test(tcs);
+      const impugnaOferta = !/n[ãa]o\s+(impugn|contest|questiona)/i.test(t) && (/(impugn|contest|questiona)\w*.{0,60}(termos d[ao]s? (proposta|oferta)|proposta|oferta)|proposta (injusta|desproporcional|insuficiente)|(proposta|oferta).{0,40}(injusta|desproporcional)/i.test(t));
+      const naoAceita = /n[ãa]o (aceit|concord)\w*.{0,60}(proposta|acordo)|recus\w*.{0,60}(proposta|acordo)/i.test(t) || /n[ãa]o(aceit|concord)\w{0,8}.{0,50}(proposta|acordo)|recus\w{0,8}.{0,50}(proposta|acordo)/.test(tc) || impugnaOferta;
       if ((acTit || aceita) && !naoAceita) m.push('ACEITA');
       if (/(n[ãa]o (aceit|concord)|recus|discord|rejeit)\w*.{0,80}(proposta|acordo)|(proposta|acordo).{0,60}(recus|rejeit|n[ãa]o (aceit|concord))|contra-?proposta/i.test(t) || naoAceita) m.push('RECUSA');
       if (/contra-?proposta/i.test(t)) m.push('CONTRAPROPOSTA');

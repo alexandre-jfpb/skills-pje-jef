@@ -208,6 +208,8 @@ Testado em 23/10/2026 nos 30 processos do terceiro teste (CSV da tarefa de anál
 
 **v7.1 (24/11/2026):** a detecção de `Redesignar perícia?` só vale com frases da comunicação do perito (perito impedido, "já foi meu paciente", autor que não compareceu, menor sem documento com foto, pedido de remarcação) e nunca com o quesito 5.2 respondido. A v7 marcava laudos de menores no BPC por causa de "impedimento de longo prazo" e "assistente técnico: não compareceu".
 
+**v8 (25/11/2026):** o aceite da proposta não é mais lido na "concordância com o laudo", na "conclusão pericial" nem em "nos termos que se seguem"; a petição que impugna os termos da oferta ou chama a proposta de injusta ou desproporcional é recusa. Confira sempre o texto da petição que o script marcou como `ACEITA`.
+
 ## Checagens preliminares — bloqueiam a classificação se divergirem
 
 Antes de classificar o laudo, faça as três checagens abaixo, em todo processo. Encontrando divergência relevante em qualquer uma delas, **não classifique o laudo**.
