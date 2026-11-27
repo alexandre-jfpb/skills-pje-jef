@@ -17,7 +17,7 @@
   if (!CR) return 'carregue antes o analise-lote-pje.js (window.__CR)';
   const LM = (window.__LM = window.__LM || { out: {}, dados: {}, mk: {} });
   LM.cfg = LM.cfg || { sm: null, etiquetas: {} };
-  LM.versao = 7; // v2, 30/10/2026: respostas do Setor de Perícias (afastamento, faixas, adicional de 25%, curatela 18+, outros laudos, incapacidade passada)
+  LM.versao = 8.5; // v2, 30/10/2026: respostas do Setor de Perícias (afastamento, faixas, adicional de 25%, curatela 18+, outros laudos, incapacidade passada)
   // v3, 16/11/2026: proposta de acordo depois do laudo (só informa, com o método da jef-expediente-manifestacao), intimação das
   // partes sobre o laudo (Intimação + Certidão de Intimação com os expedientes do INSS e da parte autora; sem ela, FALHA NA
   // INTIMAÇÃO) e MPF (cadastrado, manifestação nos autos, ou parte autora menor ou incapaz → INTIMAR MPF). Pede o CR v12.
@@ -34,6 +34,9 @@
   // v6, 18/11/2026: com as duas partes ouvidas e sem MPF, valem as regras da triagem de expediente para a rotina que
   // trataria a etiqueta do laudo (C, D, INC, LIM, LOAS, CEJ, LA): marca D.exp, e LM.paraExp(nums) devolve a lista
   // "processo|rotina" para o EM.inicia da jef-expediente-manifestacao.
+  // v8.5, 27/11/2026: laudo juntado como anexo com "exame" no título (pulado pelo CR) é baixado quando o "Laudo Pericial" do
+  // mesmo dia é só um texto curto (anexosLaudo); formulário do perito que pede exames ("providenciado(s) o(s) seguinte(s)
+  // exame(s)", "marcada nova data para o retorno") → Exame complementar.
 
   const norm = (t) => (t || '').replace(/\s+/g, ' ').replace(/(\d)\s*\.\s*(?=\d)/g, '$1.')
     .replace(/☒|\(\s*[xX]\s*\)|\[\s*[xX]\s*\]/g, '[X]').replace(/☐|\(\s*\)|\[\s*\]/g, '[ ]');
@@ -266,7 +269,9 @@
     if (tr) D.acid.push('"' + tr[0].slice(0, 90) + '"');
     const at = tAll.match(/(sofreu|v[íi]tima de)\s+acidente\s+(t[íi]pico\s+)?d[eo]\s+trabalho[^.;]{0,60}/i);
     if (at) D.acid.push('"' + at[0].slice(0, 90) + '"');
-    const ex = tAll.match(/[^.]{0,120}(solicit\S*\s+(a\s+)?(realiza\S*\s+de\s+)?(o\s+|os\s+)?exames?|aguard\S*\s+(o\s+)?(resultado|exame)|n[ãa]o\s+(é|foi)\s+poss[íi]vel\s+concluir|(laudo|per[íi]cia)\s+inconclusiv)[^.]{0,160}/i);
+    // v8.5: também o formulário do perito "foi solicitado ... que fosse(m) providenciado(s) o(s) seguinte(s) exame(s)" e
+    // "Solicito que seja marcada nova data para o retorno".
+    const ex = tAll.match(/[^.]{0,120}(providenciad\S*\s+o\S*\s+seguinte\S*\s+exame|marcad[ao]\s+nova\s+data\s+para\s+o\s+retorno|solicit\S*\s+(a\s+)?(realiza\S*\s+de\s+)?(o\s+|os\s+)?exames?|aguard\S*\s+(o\s+)?(resultado|exame)|n[ãa]o\s+(é|foi)\s+poss[íi]vel\s+concluir|(laudo|per[íi]cia)\s+inconclusiv)[^.]{0,160}/i);
     D.exame = ex ? ex[0].slice(0, 280) : '';
     // Incapacidade só no passado (período encerrado antes da perícia) = Laudo D, com o período no Fundamento.
     const pp = tAll.match(/[^.]{0,80}(incapacidade|incapaz)[^.]{0,80}(pret[ée]rit|no per[íi]odo (de|entre)|entre \d{1,2}\/\d{1,2}\/\d{4} e|at[ée] \d{1,2}\/\d{1,2}\/\d{4}, quando)[^.]{0,120}/i);
@@ -700,12 +705,31 @@
     return linhas.join('\n');
   }
 
+  // v8.5 (27/11/2026): o laudo do perito juntado como anexo com "exame" no título ("Laudo Pericial (… retorno de exame …)",
+  // "Laudo Pericial (SOLICITACAO DE EXAME …)") é pulado pelo CR (palavra EXAME na lista "pula"), e o "Laudo Pericial" HTML
+  // curto do mesmo dia (texto de encaminhamento) era escolhido como laudo → INDEFINIDO. Quando o "Laudo Pericial" do dia tem
+  // menos de 300 caracteres, baixa aqui os anexos "Laudo Pericial (…)" do mesmo dia que o CR pulou (fora os dossiês do INSS
+  // "(<CPF> …)"), até 4 por processo, e registra o tamanho do texto para a escolha do laudo.
+  async function anexosLaudo(num) {
+    const ds = CR.mem.docs[num] || [];
+    const curto = (x) => /^Laudo Pericial\s*$/i.test(x.ti) && x.ct !== 'pulado' && (CR.mem.txt[x.id] || '').replace(/\s+/g, ' ').trim().length < 300;
+    const datas = new Set(ds.filter(curto).map((x) => x.data));
+    if (!datas.size) return;
+    const alvo = ds.filter((x) => datas.has(x.data) && x.ct === 'pulado' && /^Laudo Pericial\s*\(/i.test(x.ti)
+      && !/^Laudo Pericial\s*\(\s*\d{11}/i.test(x.ti) && !/DOSSI|CNIS|EXTRATO|CADASTR/i.test(x.ti)).slice(0, 4);
+    for (const x of alvo) {
+      try { await CR.txt(x.id, 100); } catch (e) { continue; }
+      const t = CR.mem.txt[x.id] || '';
+      if (t.trim()) { x.len = t.length; x.ct = /^PDF/.test(t) ? 'pdf' : 'html'; }
+    }
+  }
   LM.prep = async function (nums) {
     const falta = faltaCfg();
     if (falta.length) return 'configure as etiquetas da unidade antes de iniciar: LM.config({ etiquetas: { ... } }) — faltam: ' + falta.join(', ');
     for (const num of nums) {
       try {
         if (!CR.mem.docs[num]) { LM.out[num] = '#' + num + ' AINDA NÃO LIDO PELO CR'; continue; }
+        await anexosLaudo(num);
         const { L, S, outrosMed } = laudos(num);
         if (S) await CR.txt(S.id, 40);
         else if (L) {

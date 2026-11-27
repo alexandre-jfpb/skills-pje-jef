@@ -221,6 +221,8 @@ Testado em 23/10/2026 nos 30 processos do terceiro teste (CSV da tarefa de anál
 
 **v8.4 (27/11/2026):** a comunicação do perito que se declara impedido por parentesco com o advogado da parte passa a ser sugerida como `Redesignar perícia`; e o quadro clínico e a duração passam a ser lidos também no modelo que numera os quesitos como 7.3 e 7.4 (antes, só 5.3/6.3 e 5.4/6.4). As regras de classificação não mudaram. Os quesitos de menor também são lidos no "II.1)" do modelo de quesitos em quadros.
 
+**v8.5 (27/11/2026):** o laudo do perito juntado como anexo com "exame" no título ("Laudo Pericial (… retorno de exame …)", "Laudo Pericial (SOLICITACAO DE EXAME …)") era pulado pelo leitor do PJe, e o script tomava como laudo o "Laudo Pericial" curto do mesmo dia (o processo saía INDEFINIDO). Agora, quando o "Laudo Pericial" do dia tem menos de 300 caracteres, o script baixa esses anexos do mesmo dia e escolhe o de texto maior; e o formulário do perito que pede exames ("providenciado(s) o(s) seguinte(s) exame(s)", "marcada nova data para o retorno") passa a sugerir `Exame complementar`. As regras de classificação não mudaram.
+
 
 ## Checagens preliminares — bloqueiam a classificação se divergirem
 
