@@ -154,7 +154,7 @@
   function menor(t) {
     // Quesito da limitação do menor: 5.2 no modelo da 7ª Vara; v4: 4.2 nos modelos com os quesitos de menor no item 4.
     // O 5.2 de adulto desses modelos ("A doença, trauma ou deficiência se enquadra…") não casa.
-    const w = win(t, /\b[45]\.2\s*\.?\s*A doen[çc]a,\s*defici[êe]ncia/i, 0, 420);
+    const w = win(t, /(?:\b[45]\.2\s*\.?|\bII\.1\s*\)?)\s*A doen[çc]a,\s*defici[êe]ncia/i, 0, 420); // v8.4: também o II.1) do quadro II do modelo de quesitos em quadros
     const c = compacta(w);
     let g = '';
     if (/\[x\]sim,?degrauleve/.test(c)) g = 'leve';
