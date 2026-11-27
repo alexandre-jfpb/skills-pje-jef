@@ -412,8 +412,8 @@
       // v4: também com a palavra partida pelo pdf.js ("a ceitar o acordo"): a mesma busca no texto sem espaços.
       const tc = t.replace(/\s+/g, '').toLowerCase().replace(/deacordocom/g, '');
       // v8 (25/11/2026): "concordância com o laudo/a conclusão pericial" e "nos termos que se seguem" NÃO são aceite da proposta; a
-      // petição que impugna os termos da oferta é recusa. (0038305-07: "concordância com o laudo ... nos termos que se seguem" saía como
-      // aceite; 0030663-80: "concordando com a conclusão ... e impugnando os termos da oferta" também.)
+      // petição que impugna os termos da oferta é recusa. (Ex.: "concordância com o laudo ... nos termos que se seguem" saía como
+      // aceite; "concordando com a conclusão ... e impugnando os termos da oferta" também.)
       const sl = t.replace(/(aceit|concord)\w*\s+(integral\w*\s+|total\w*\s+|plena\w*\s+)?(com|d[oa]s?|a[os]?)\s+(o\s+|os\s+|a\s+|as\s+)?(laudo|conclus\w*|per[íi]cia|estudo|parecer)(?:\s+(?!(?:e|aceit\w*|concord\w*)\b)[^\s.;,]+){0,4}/gi, ' ').replace(/nos termos (que se seguem|seguintes|abaixo)/gi, ' ');
       const tcs = sl.replace(/\s+/g, '').toLowerCase().replace(/deacordocom/g, '');
       const aceita = /(aceit|concord|anu[êe])\w*.{0,120}(proposta|acordo|termos (propost|ofert|d[oa] (acordo|proposta)))|(proposta|acordo).{0,150}(aceit|concord|anu[êe]ncia)/i.test(sl) || /(aceit|concord|anu[êe])\w{0,8}.{0,90}(proposta|acordo)/.test(tcs);
