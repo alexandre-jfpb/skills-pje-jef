@@ -86,7 +86,7 @@
     return { L, socDepois, outrosMed, S };
   }
   // v4: quadro clínico (6.3 ou 5.3) presente no texto; sem ele, o laudo é complementar (ou não carregou).
-  const QUADRO_RE = /\b[56]\.3\s*\.?\s*O quadro cl[íi]nico/i;
+  const QUADRO_RE = /\b[5-7]\.3\s*\.?\s*O quadro cl[íi]nico/i;
   // O laudo mais recente de uma lista: a data mais recente e, no mesmo dia, o de texto maior.
   function anterior(list) {
     if (!list || !list.length) return null;
@@ -113,9 +113,9 @@
   function quadro(t) {
     // Quadro clínico: 6.3 (modelo da 7ª Vara) ou 5.3 (modelos com os quesitos de adulto no item 5).
     // "6.3 . O quadro" (ponto solto) em modelos de outros peritos (inclusive "5.3 . O quadro").
-    const ini = t.search(/\b[56]\.3\s*\.?\s*O quadro cl[íi]nico/i);
+    const ini = t.search(/\b[5-7]\.3\s*\.?\s*O quadro cl[íi]nico/i);
     if (ini < 0) return { grau: '', sub: '', txt: '' };
-    const fim = t.slice(ini + 10).search(/\b[56]\.4\s*\.?\s/);
+    const fim = t.slice(ini + 10).search(/\b[5-7]\.4\s*\.?\s/);
     const w = t.slice(ini, fim > 0 ? ini + 10 + fim : ini + 1200);
     const c = compacta(w);
     const pos = [['A', c.search(/\[x\]\.?incapacita\S{0,4}total/)], ['B', c.search(/\[x\]\.?incapacita\S{0,4}parcial/)],
@@ -134,7 +134,7 @@
   }
 
   function duracao(t) {
-    const ini = t.search(/\b[56]\.4\s*\.?\s*A incapacidade/i);
+    const ini = t.search(/\b[5-7]\.4\s*\.?\s*A incapacidade/i);
     if (ini < 0) return { dur: '', prazo: '', txt: '' };
     const w = t.slice(ini, ini + 520);
     const c = compacta(w);
@@ -252,8 +252,8 @@
     // v7 (20/11/2026, Setor de Perícias; v7.1 em 24/11/2026): "Laudo Pericial" que é comunicação do perito (perito impedido, autor
     // ausente, menor sem documento com foto) e sem quadro clínico nem quesitos de menor → Redesignar perícia. A v7 pegava "impedimento
     // de longo prazo" (BPC) e "assistente técnico não compareceu": agora só as frases da comunicação, e nunca com o 5.2 respondido.
-    const COM_RE = /apresento\s+impedimento|declar\w+\s+(-?se\s+)?impedid|impedid[oa]\s+(de|para)\s+(atuar|realizar|periciar)|(autor|autora|parte autora|periciad[oa])[^.]{0,40}n[ãa]o\s+compareceu|sem\s+(documento|identidade)[^.]{0,40}foto|n[ãa]o\s+apresentou\s+documento[^.]{0,80}foto|j[áa]\s+foi\s+meu\s+paciente|(pede|solicita)\w*\s+(a\s+)?remarca/i;
-    const tLc = tL.replace(/assistente\s+t[ée]cnic[oa][^.\n]{0,60}n[ãa]o\s+compareceu/ig, ''); // v8.2
+    const COM_RE = /apresento\s+impedimento|declar\w+\s+(-?se\s+)?impedid|impedid[oa]\s+(de|para)\s+(atuar|realizar|periciar)|(autor|autora|parte autora|periciad[oa])[^.]{0,40}n[ãa]o\s+compareceu|sem\s+(documento|identidade)[^.]{0,40}foto|n[ãa]o\s+apresentou\s+documento[^.]{0,80}foto|j[áa]\s+foi\s+meu\s+paciente|impedimento\s+por\s+(rela[çc][ãa]o\s+de\s+)?(grau\s+de\s+)?parentesco|encontro\s*-?\s*me\s+impossibilitad[oa]\s+de\s+(exercer|realizar)|(pede|solicita)\w*\s+(a\s+)?remarca/i;
+    const tLc = tL.replace(/assistentes?\s+t[ée]cnic[oa]s?[^.\n]{0,60}n[ãa]o\s+compareceu/ig, ''); // v8.2
     D.redes = !QUADRO_RE.test(t) && !mn.g && COM_RE.test(tLc) ? (tLc.match(new RegExp('[^.]{0,100}(?:' + COM_RE.source + ')[^.]{0,140}', 'i')) || [''])[0].slice(0, 260) : '';
     D.q71 = (() => { const w = win(t, /assist[êe]ncia permanente de outra pessoa para as atividades da vida di[áa]ria/i, 0, 140); return w ? resposta(w.replace(/^[^?]*\?|^.{0,95}di[áa]ria/i, '')) : '—'; })();
     D.cidF = /CID[\s\S]{0,20}?\bF\s?\d{2}|\bF\s?\d{2}\.\d/.test(t);

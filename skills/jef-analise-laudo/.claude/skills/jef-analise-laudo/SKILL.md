@@ -217,6 +217,10 @@ Testado em 23/10/2026 nos 30 processos do terceiro teste (CSV da tarefa de anál
 - **Laudo social, renda:** lê a renda per capita escrita "per capta" e, sem ela, o quesito B com "recebe o valor de R$ …".
 - **Laudo social, endereço:** "não localizei vizinhos …" deixa de ser lido como endereço não localizado.
 
+**v8.3 (27/11/2026):** o "assistente técnico ausente" também é ignorado no plural ("ASSISTENTES TÉCNICOS ... Não compareceu"), que antes saía como `Redesignar perícia`. As regras de classificação não mudaram.
+
+**v8.4 (27/11/2026):** a comunicação do perito que se declara impedido por parentesco com o advogado da parte passa a ser sugerida como `Redesignar perícia`; e o quadro clínico e a duração passam a ser lidos também no modelo que numera os quesitos como 7.3 e 7.4 (antes, só 5.3/6.3 e 5.4/6.4). As regras de classificação não mudaram.
+
 
 ## Checagens preliminares — bloqueiam a classificação se divergirem
 
